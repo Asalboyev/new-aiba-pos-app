@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,16 +22,28 @@ class ShiftScreen extends ConsumerStatefulWidget {
 }
 
 class _ShiftScreenState extends ConsumerState<ShiftScreen> {
+  Timer? _refresh;
+
   @override
   void initState() {
     super.initState();
     // Kassir mishka ishlatmaydi: Enter — smenani boshlash, Z — yopish.
     // Global handler (fokus qayerda bo'lishidan qat'i nazar ishlaydi).
     HardwareKeyboard.instance.addHandler(_onKey);
+    // Ekranga kirilganda statistika serverdan qayta so'raladi — aks holda
+    // smena ochilgandagi (nol) qiymatlar ko'rinib turadi. Har 30 soniyada
+    // yangilanadi: savdo jamlari va smena davomiyligi jonli bo'ladi.
+    Future.microtask(() {
+      if (mounted) ref.invalidate(currentShiftProvider);
+    });
+    _refresh = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) ref.invalidate(currentShiftProvider);
+    });
   }
 
   @override
   void dispose() {
+    _refresh?.cancel();
     HardwareKeyboard.instance.removeHandler(_onKey);
     super.dispose();
   }

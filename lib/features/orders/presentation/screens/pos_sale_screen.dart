@@ -10,6 +10,7 @@ import '../../../menu/domain/entities/product.dart';
 import '../../../menu/presentation/providers/menu_providers.dart';
 import '../../../printing/domain/receipt_data.dart';
 import '../../../printing/presentation/printing_providers.dart';
+import '../../../shift/presentation/providers/shift_providers.dart';
 import '../../domain/entities/order_draft.dart';
 import '../../domain/entities/payment_method.dart';
 import '../providers/cart_provider.dart';
@@ -326,6 +327,9 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
     final result = await ref.read(ordersRepositoryProvider).checkout(draft);
     ref.invalidate(recentOrdersProvider);
     ref.invalidate(unsyncedCountProvider);
+    // Ish vaqti ekrani smena jamlarini (savdo, naqd, karta, buyurtmalar soni)
+    // shu provider orqali ko'rsatadi — sotuvdan keyin yangilanmasa nol qoladi.
+    ref.invalidate(currentShiftProvider);
 
     // Kassa-relay fiskal: navbatga tushgan chekni darhol lokal Communicator
     // orqali yuborishga urinamiz (fire-and-forget — dialog holatni o'zi
