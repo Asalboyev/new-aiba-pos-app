@@ -18,6 +18,9 @@ class Shift extends Equatable {
   final num clickTotal;
   final num uzumTotal;
 
+  /// Smena rasxodlari (manager Telegram botdan yozadi) — kassadan minus.
+  final num expensesTotal;
+
   const Shift({
     required this.id,
     required this.status,
@@ -32,6 +35,7 @@ class Shift extends Equatable {
     this.cardOnly = 0,
     this.clickTotal = 0,
     this.uzumTotal = 0,
+    this.expensesTotal = 0,
   });
 
   bool get isOpen => status == 'open';
@@ -51,5 +55,6 @@ class Shift extends Equatable {
         cardOnly,
         clickTotal,
         uzumTotal,
+        expensesTotal,
       ];
 }

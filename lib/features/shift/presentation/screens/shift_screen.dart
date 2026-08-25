@@ -266,10 +266,18 @@ class _ShiftScreenState extends ConsumerState<ShiftScreen> {
           children: [
             _MiniTile(label: 'Boshlang\'ich kassa', value: Money.formatSom(opening)),
             const SizedBox(width: 14),
+            // Joriy kassa = boshlang'ich + naqd savdo − rasxodlar.
             _MiniTile(
                 label: 'Joriy kassa',
-                value: Money.formatSom(opening + totalCash),
+                value: Money.formatSom(
+                    opening + totalCash - (shift?.expensesTotal ?? 0)),
                 valueColor: PosColors.green),
+            const SizedBox(width: 14),
+            // Manager Telegram botga «rasxod 50000 izoh» deb yozadi.
+            _MiniTile(
+                label: 'Rasxod',
+                value: Money.formatSom(shift?.expensesTotal ?? 0),
+                valueColor: PosColors.red),
             const SizedBox(width: 14),
             _MiniTile(
                 label: 'Jami daromad',
