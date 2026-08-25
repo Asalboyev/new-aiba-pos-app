@@ -254,12 +254,15 @@ class PosAvatar extends StatelessWidget {
                 style: const TextStyle(
                     color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
           ),
-          const SizedBox(width: 4),
-          SvgPicture.asset('assets/icons/chevron_down.svg',
-              width: 18,
-              height: 18,
-              colorFilter:
-                  const ColorFilter.mode(Colors.white54, BlendMode.srcIn)),
+          // Kichik rejimda strelka ko'rsatilmaydi — avatar o'zi bosiladi.
+          if (!compact) ...[
+            const SizedBox(width: 4),
+            SvgPicture.asset('assets/icons/chevron_down.svg',
+                width: 18,
+                height: 18,
+                colorFilter:
+                    const ColorFilter.mode(Colors.white54, BlendMode.srcIn)),
+          ],
         ],
       ),
     );
