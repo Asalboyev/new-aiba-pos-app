@@ -71,12 +71,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
     // PIN-only: staffCode bo'sh — backend PIN orqali xodimni topadi.
-    // Smena kirishда avtomatik ochiladi (opening_cash = 0).
+    // Smena AVTO-OCHILMAYDI: smenani faqat menejer «Ish vaqti» bo'limida
+    // boshlang'ich kassani kiritib ochadi. Ochiq smena bo'lsa, server uni
+    // baribir sessiyaga bog'lab beradi.
     final ok = await ref.read(loginControllerProvider.notifier).login(
           terminalCode: terminalCode,
           staffCode: '',
           pin: _pin,
-          openShift: true,
+          openShift: false,
           openingCash: 0,
         );
     if (ok) {
