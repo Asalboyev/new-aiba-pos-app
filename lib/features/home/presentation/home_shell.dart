@@ -8,6 +8,7 @@ import '../../../core/widgets/pos_chrome.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../delivery/presentation/screens/delivery_screen.dart';
 import '../../orders/domain/entities/payment_method.dart';
+import '../../orders/presentation/providers/cart_provider.dart';
 import '../../orders/presentation/providers/sync_service.dart';
 import '../../orders/presentation/screens/pos_sale_screen.dart';
 import '../../orders/presentation/widgets/error_check_dialog.dart';
@@ -40,6 +41,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final route = ModalRoute.of(context);
     if (route != null && !route.isCurrent) return false;
     if (event.logicalKey != LogicalKeyboardKey.f10) return false;
+    // Mahsulotlar ekranida savat BO'SH bo'lmasa F10 — Click Pass (tezkor QR
+    // to'lov, pos_sale_screen ushlaydi); bo'limlar aylanishi savat bo'shida.
+    if (_index == 0 && ref.read(cartProvider).items.isNotEmpty) return false;
     const order = [0, 1, 2, 3];
     final next = order[(order.indexOf(_index) + 1) % order.length];
     setState(() => _index = next);

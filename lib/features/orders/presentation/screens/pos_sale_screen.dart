@@ -117,6 +117,15 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
       _closeOrder(context, ref);
       return true;
     }
+    // F10 — Click Pass (tezkor yo'l): mijoz QR ko'rsatdi → kassir F10 bosib
+    // skanerlaydi → pul yechilishi bilan order o'zi yopiladi. Savat bo'sh
+    // bo'lsa F10 bo'limlar aylanishiga (home_shell) qoladi.
+    if (k == LogicalKeyboardKey.f10) {
+      final cart = ref.read(cartProvider);
+      if (cart.isEmpty) return false;
+      _checkout(context, ref, PaymentMethod.qr);
+      return true;
+    }
     // F12 — oxirgi chekni chop etish (mijoz chek so'rasagina).
     if (k == LogicalKeyboardKey.f12) {
       final rec = _lastReceipt;
@@ -280,45 +289,9 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
         Payment(PaymentMethod.keldiKetdi, cart.total, label: 'Keldi-ketdi'),
       ];
     } else if (method == PaymentMethod.qr) {
-      // QR to'lovда 2 chek: 1) "To'lash" bosilganda mahsulotlar + TO'LOV KODI
-      // QR (fiskal emas) — mijoz skanerlab to'laydi; 2) to'lov o'tgach fiskal
-      // chek avtomatik chiqadi. Boshqa to'lov turlarida — bitta chek.
-      payments = await QrPayDialog.show(
-        context,
-        cart.total,
-        onPrintPaymentSlip: (checkoutUrl) async {
-          final ses = ref.read(sessionProvider);
-          final rr = ses?.restaurant;
-          final slip = ReceiptData(
-            restaurantName: rr?.name ?? 'AIBA',
-            terminalName: ses?.terminal.name,
-            orderNumber: null, // chek raqami hali yo'q (to'lovdan oldin)
-            items: cart.items,
-            subtotal: cart.subtotal,
-            discount: cart.discount,
-            total: cart.total,
-            payments: const [],
-            fiscal: null,
-            createdAt: DateTime.now(),
-            legalName: rr?.legalName,
-            inn: rr?.inn,
-            address: rr?.address,
-            phone: rr?.receiptPhone,
-            header: rr?.receiptHeader,
-            footer: rr?.receiptFooter,
-            showQr: false,
-            showMxik: rr?.receiptShowMxik ?? true,
-            paperWidth: rr?.receiptPaperWidth ?? 80,
-            paymentQrUrl: checkoutUrl,
-          );
-          final rep = await ref.read(printerServiceProvider).printReceipt(slip);
-          if (context.mounted) {
-            ScaffoldMessenger.of(context)
-              ..clearSnackBars()
-              ..showSnackBar(SnackBar(content: Text(rep.message)));
-          }
-        },
-      );
+      // Click / Uzum: mijoz ko'rsatgan QR skanerlanadi → pul yechilishi bilan
+      // order AVTOMATIK yopiladi va fiskal chek chiqadi.
+      payments = await QrPayDialog.show(context, cart.total);
     } else {
       payments =
           await PaymentDialog.show(context, cart.total, initialMethod: method);
