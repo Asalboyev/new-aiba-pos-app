@@ -49,8 +49,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     // Mahsulotlar ekranida savat BO'SH bo'lmasa F10 — Click Pass (tezkor QR
     // to'lov, pos_sale_screen ushlaydi); bo'limlar aylanishi savat bo'shida.
     if (_index == 0 && ref.read(cartProvider).items.isNotEmpty) return false;
-    // Kassirda Ish vaqti (1) bo'limi yo'q — aylanishda o'tkazib yuboriladi.
-    final order = _isManager ? const [0, 1, 2, 3] : const [0, 2, 3];
+    // Kassirda Ish vaqti (1) va Sozlamalar (3) bo'limlari yo'q — aylanishda
+    // o'tkazib yuboriladi.
+    final order = _isManager ? const [0, 1, 2, 3] : const [0, 2];
     final i = order.indexOf(_index);
     final next = order[(i < 0 ? 0 : i + 1) % order.length];
     setState(() => _index = next);
@@ -232,8 +233,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   }
 
   Widget _content() {
-    // Kassir Ish vaqti bo'limiga kira olmaydi — 1 tanlansa savdoga qaytadi.
-    final idx = (!_isManager && _index == 1) ? 0 : _index;
+    // Kassir Ish vaqti (1) va Sozlamalar (3) bo'limlariga kira olmaydi —
+    // tanlansa savdoga qaytadi.
+    final idx = (!_isManager && (_index == 1 || _index == 3)) ? 0 : _index;
     switch (idx) {
       case 1:
         return const ShiftScreen();
@@ -298,6 +300,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
               onSettings: () => setState(() => _index = 3),
               settingsSelected: _index == 3,
               showShift: _isManager,
+              showSettings: _isManager,
               footer: compact
                   ? Column(children: [
                       refresh,

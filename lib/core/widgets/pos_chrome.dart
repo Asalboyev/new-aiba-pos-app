@@ -28,6 +28,7 @@ class PosNavRail extends StatelessWidget {
     required this.onSettings,
     this.settingsSelected = false,
     this.showShift = true,
+    this.showSettings = true,
     this.footer,
   });
 
@@ -40,6 +41,10 @@ class PosNavRail extends StatelessWidget {
   /// false — kassir rejimi: "Ish vaqti" bo'limi ko'rsatilmaydi (smena
   /// boshqaruvi faqat menejerda).
   final bool showShift;
+
+  /// false — kassir rejimi: "Sozlamalar" ham ko'rsatilmaydi (server/printer
+  /// sozlamalarini faqat menejer o'zgartiradi).
+  final bool showSettings;
 
   /// Pastda ko'rinadigan qo'shimcha tugmalar (Yangilash + Avatar). Ular
   /// avval o'ng yuqorida suzib turardi va kichik oynada qidiruv ustiga
@@ -86,12 +91,13 @@ class PosNavRail extends StatelessWidget {
             ),
             const SizedBox(height: 10),
           ],
-          _NavItem(
-            iconAsset: 'assets/icons/nav_settings.svg',
-            label: 'Sozlamalar',
-            selected: settingsSelected,
-            onTap: onSettings,
-          ),
+          if (showSettings)
+            _NavItem(
+              iconAsset: 'assets/icons/nav_settings.svg',
+              label: 'Sozlamalar',
+              selected: settingsSelected,
+              onTap: onSettings,
+            ),
           const SizedBox(height: 10),
           // Kassir mishka ishlatmaydi — bo'limlar F10 bilan aylanadi.
           Container(
