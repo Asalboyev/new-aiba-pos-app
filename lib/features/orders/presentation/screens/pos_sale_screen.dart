@@ -486,7 +486,15 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
       _lastResult = r;
     }
     if (!context.mounted) return;
-    await _printFresh(context, ref, receipt, r);
+    try {
+      await _printFresh(context, ref, receipt, r);
+    } catch (_) {
+      // Chop etish yiqilsa savdo baribir yakunlangan — kassir F12 bilan
+      // qayta urinishi mumkin.
+      if (context.mounted) {
+        _toast(context, 'Chek chiqarilmadi — F12 bilan qayta urining');
+      }
+    }
   }
 
   /// XATO CHEK bannerли nusxa (soliq QRsiz) chop etiladi.
