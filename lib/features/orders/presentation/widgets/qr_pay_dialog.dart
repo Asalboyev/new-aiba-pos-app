@@ -165,9 +165,11 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 520),
-        // Klaviatura: F1 — Click, F2 — Uzum, Enter×2 — qo'lda tasdiqlash,
-        // Esc — bekor. Skanerlash — hech qanday klavish kerak emas.
+        // Klaviatura: F1 — Click, F2 — Uzum, Enter — qo'lda tasdiqlash
+        // (statik rejim), Esc — bekor. autofocus SHART: statik rejimda hech
+        // qaysi maydon fokus olmaydi, usiz Enter/Esc umuman ushlanmaydi.
         child: Focus(
+          autofocus: true,
           onKeyEvent: (node, event) {
             if (event is! KeyDownEvent) return KeyEventResult.ignored;
             if (event.logicalKey == LogicalKeyboardKey.f1) {
