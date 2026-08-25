@@ -220,7 +220,19 @@ class PrinterService {
           final msg = lines.isEmpty ? 'noma\'lum xato' : lines.first;
           return PrintReport(PrintOutcome.failed, 'Printerga yuborilmadi: $msg');
         }
-        return const PrintReport(PrintOutcome.printed, 'Chek chop etildi');
+        // Qaysi printerga ketgani ko'rsatiladi — «chop etildi lekin qog'oz
+        // chiqmadi» holatida kassir noto'g'ri printer tanlanganini darhol
+        // ko'radi (Sozlamalarda aniq nomini kiritib tuzatadi).
+        final out = res.stdout.toString();
+        final picked = RegExp(r"AIBA: [^\n]*?: ([^\n]+)")
+            .allMatches(out)
+            .map((m) => m.group(1)!.trim())
+            .lastOrNull;
+        return PrintReport(
+            PrintOutcome.printed,
+            picked == null
+                ? 'Chek chop etildi'
+                : 'Chek chop etildi → $picked');
       } finally {
         try {
           await File(binPath).delete();
