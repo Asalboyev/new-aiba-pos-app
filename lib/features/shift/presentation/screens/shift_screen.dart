@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../../core/utils/money.dart';
+import '../../../../core/utils/thousands_formatter.dart';
 import '../../../../core/widgets/pos_chrome.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../reports/presentation/providers/reports_providers.dart';
@@ -941,7 +942,7 @@ class _PosDialogState extends State<_PosDialog> {
                     controller: _ctrl,
                     autofocus: true,
                     keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    inputFormatters: [ThousandsInputFormatter()],
                     onSubmitted: (_) => _confirm(),
                     textAlign: TextAlign.center,
                     style: const TextStyle(

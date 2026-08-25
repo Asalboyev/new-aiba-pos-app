@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/providers/core_providers.dart';
@@ -25,7 +26,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Timer? _errorTimer;
 
   @override
+  void initState() {
+    super.initState();
+    // Fizik klaviatura: PIN raqamlarini to'g'ridan-to'g'ri terish mumkin
+    // (ekran tugmalarini bosish shart emas). Backspace — o'chirish.
+    HardwareKeyboard.instance.addHandler(_onHwKey);
+  }
+
+  bool _onHwKey(KeyEvent e) {
+    if (e is! KeyDownEvent || !mounted) return false;
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) return false;
+    final ch = e.character;
+    if (ch != null && RegExp(r'^[0-9]$').hasMatch(ch)) {
+      _digit(ch);
+      return true;
+    }
+    if (e.logicalKey == LogicalKeyboardKey.backspace) {
+      _backspace();
+      return true;
+    }
+    return false;
+  }
+
+  @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onHwKey);
     _errorTimer?.cancel();
     super.dispose();
   }
@@ -84,6 +110,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (ok) {
       // Sozlash tugadi — endi "000" kodi ishlamaydi.
       await ref.read(appConfigProvider).markSetupDone();
+      // KASSIR smena yopiq bo'lsa kira olmaydi — smenani menejer ochadi.
+      // (Menejer smenasiz ham kiradi: aynan u smenani ochishi kerak.)
+      final s = ref.read(sessionProvider);
+      if (s != null && s.staff.role == 'cashier' && s.shiftId == null) {
+        await ref.read(sessionProvider.notifier).logout();
+        if (mounted) {
+          setState(() => _pin = '');
+          ScaffoldMessenger.of(context)
+            ..clearSnackBars()
+            ..showSnackBar(const SnackBar(
+              duration: Duration(seconds: 5),
+              content: Text(
+                  'Smena ochilmagan — avval menejer smenani ochishi kerak'),
+            ));
+        }
+        return;
+      }
     }
     if (!ok && mounted) setState(() => _pin = '');
   }
