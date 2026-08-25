@@ -43,13 +43,19 @@ class PosNavRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    return Container(
       width: 108,
+      decoration: const BoxDecoration(
+        // Yarim shaffof shisha panel — suv foni mayin ko'rinib turadi,
+        // menyu esa alohida "qavat" bo'lib ajralib turadi.
+        color: Color(0xB80B0E11),
+        border: Border(right: BorderSide(color: PosColors.cardBorder)),
+      ),
       child: Column(
         children: [
-          const SizedBox(height: 16),
-          SvgPicture.asset('assets/logo_mark.svg', width: 52, height: 52),
-          const SizedBox(height: 30),
+          const SizedBox(height: 18),
+          SvgPicture.asset('assets/logo_mark.svg', width: 48, height: 48),
+          const SizedBox(height: 26),
           _NavItem(
             iconAsset: 'assets/icons/nav_products.svg',
             label: 'Mahsulotlar',
@@ -89,16 +95,18 @@ class PosNavRail extends StatelessWidget {
           const SizedBox(height: 10),
           // Kassir mishka ishlatmaydi — bo'limlar F10 bilan aylanadi.
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
             decoration: BoxDecoration(
-              color: PosColors.iconChip,
-              borderRadius: BorderRadius.circular(6),
+              color: const Color(0x12FFFFFF),
+              borderRadius: BorderRadius.circular(7),
+              border: Border.all(color: PosColors.cardBorder),
             ),
             child: const Text('F10 ⟳',
                 style: TextStyle(
                     color: PosColors.muted,
                     fontSize: 9.5,
-                    fontWeight: FontWeight.w700)),
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3)),
           ),
           const SizedBox(height: 12),
         ],
@@ -129,14 +137,17 @@ class _NavItemState extends State<_NavItem> {
   @override
   Widget build(BuildContext context) {
     final selected = widget.selected;
-    // Rang: tanlanган — oq; hover — ochroq; oddiy — muted.
-    final color = selected
-        ? Colors.white
+    // Ikon: tanlanган — brend ko'k; hover — ochroq kulrang; oddiy — muted.
+    final iconColor = selected
+        ? const Color(0xFF5EA2F6)
         : (_hover ? const Color(0xFFCBD0D5) : PosColors.muted);
-    // Chip foni: tanlanган to'lароq, hover mayin, aks holda shaffof.
+    // Matn: tanlanган oq (o'qilishi aniq), qolgani ikon bilan bir xil.
+    final labelColor = selected ? Colors.white : iconColor;
+    // Chip: tanlanганда ko'k tus + nozik ko'k hoshiya, hover'da mayin oq.
     final chipColor = selected
-        ? const Color(0x24FFFFFF)
-        : (_hover ? const Color(0x14FFFFFF) : Colors.transparent);
+        ? const Color(0x1F2277EA)
+        : (_hover ? const Color(0x10FFFFFF) : Colors.transparent);
+    final chipBorder = selected ? const Color(0x3D2277EA) : Colors.transparent;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hover = true),
@@ -145,31 +156,70 @@ class _NavItemState extends State<_NavItem> {
         onTap: widget.onTap,
         behavior: HitTestBehavior.opaque,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 130),
-            curve: Curves.easeOut,
-            width: 92,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(
-              color: chipColor,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: SizedBox(
+            width: 108,
+            child: Stack(
+              alignment: Alignment.center,
               children: [
-                SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: SvgPicture.asset(
-                    widget.iconAsset,
-                    colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
-                    fit: BoxFit.contain,
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  curve: Curves.easeOut,
+                  width: 92,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: chipColor,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: chipBorder),
+                  ),
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: SvgPicture.asset(
+                          widget.iconAsset,
+                          colorFilter:
+                              ColorFilter.mode(iconColor, BlendMode.srcIn),
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                      const SizedBox(height: 7),
+                      Text(widget.label,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              color: labelColor,
+                              fontSize: 11.5,
+                              height: 1.15,
+                              fontWeight: selected
+                                  ? FontWeight.w600
+                                  : FontWeight.w400)),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 7),
-                Text(widget.label,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: color, fontSize: 12, height: 1.1)),
+                // Chap tomondagi aktiv indikator chizig'i.
+                Positioned(
+                  left: 0,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 150),
+                    opacity: selected ? 1 : 0,
+                    child: Container(
+                      width: 3,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: PosColors.blue,
+                        borderRadius: const BorderRadius.horizontal(
+                            right: Radius.circular(3)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: PosColors.blue.withValues(alpha: 0.55),
+                            blurRadius: 8,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
