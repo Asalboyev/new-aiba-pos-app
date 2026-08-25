@@ -167,7 +167,6 @@ class _ShiftScreenState extends ConsumerState<ShiftScreen> {
     final ordersCount = shift?.ordersCount ?? 0;
     final totalSales = shift?.totalSales ?? 0;
     final totalCash = shift?.totalCash ?? 0;
-    final totalCard = shift?.totalCard ?? 0;
     final opening = shift?.openingCash ?? 0;
     final avg = ordersCount > 0 ? (totalSales / ordersCount) : 0;
     // Smena davomiyligi + boshlanish vaqti (Figma sarlavhasi).
@@ -190,6 +189,8 @@ class _ShiftScreenState extends ConsumerState<ShiftScreen> {
         ? (((ordersCount - errorChecks) / ordersCount) * 100).round()
         : 0;
 
+    // Naqd/Karta bu yerda TAKRORLANMAYDI — pastdagi to'lov kesimi qatorida
+    // (Naqd / Karta / Click / Uzum) bir marta ko'rsatiladi.
     final statsRow = Row(
       children: [
         _StatCard(
@@ -201,16 +202,6 @@ class _ShiftScreenState extends ConsumerState<ShiftScreen> {
             iconAsset: 'assets/icons/stat_chart.svg',
             label: 'Jami savdo',
             value: Money.formatSom(totalSales)),
-        const SizedBox(width: 14),
-        _StatCard(
-            iconAsset: 'assets/icons/stat_cash.svg',
-            label: 'Naqd',
-            value: Money.formatSom(totalCash)),
-        const SizedBox(width: 14),
-        _StatCard(
-            iconAsset: 'assets/icons/pay_card.svg',
-            label: 'Karta/QR',
-            value: Money.formatSom(totalCard)),
       ],
     );
 
