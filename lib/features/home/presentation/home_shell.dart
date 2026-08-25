@@ -33,6 +33,11 @@ class HomeShell extends ConsumerStatefulWidget {
 class _HomeShellState extends ConsumerState<HomeShell> {
   late int _index = widget.initialIndex;
 
+  /// Kassir faqat savdo qiladi: Ish vaqti bo'limi ko'rinmaydi, smena bilan
+  /// bog'liq hamma ish (ochish/yopish/hisobot) menejerda.
+  bool get _isManager =>
+      (ref.read(sessionProvider)?.staff.role ?? '') != 'cashier';
+
   /// F10 — bo'limlar orasida aylanish: Mahsulotlar → Ish vaqti →
   /// Yetkazib berish → Sozlamalar → Mahsulotlar. Kassir mishka ishlatmaydi,
   /// shuning uchun navigatsiya ham klaviaturada bo'lishi shart.
@@ -44,8 +49,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     // Mahsulotlar ekranida savat BO'SH bo'lmasa F10 — Click Pass (tezkor QR
     // to'lov, pos_sale_screen ushlaydi); bo'limlar aylanishi savat bo'shida.
     if (_index == 0 && ref.read(cartProvider).items.isNotEmpty) return false;
-    const order = [0, 1, 2, 3];
-    final next = order[(order.indexOf(_index) + 1) % order.length];
+    // Kassirda Ish vaqti (1) bo'limi yo'q — aylanishda o'tkazib yuboriladi.
+    final order = _isManager ? const [0, 1, 2, 3] : const [0, 2, 3];
+    final i = order.indexOf(_index);
+    final next = order[(i < 0 ? 0 : i + 1) % order.length];
     setState(() => _index = next);
     const names = ['Mahsulotlar', 'Ish vaqti', 'Yetkazib berish', 'Sozlamalar'];
     final m = ScaffoldMessenger.maybeOf(context);
@@ -110,7 +117,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final hasOpenShift = session?.shiftId != null ||
         ref.read(currentShiftProvider).valueOrNull != null;
 
-    if (hasOpenShift) {
+    // Kassirdan "smenani yopasizmi?" SO'RALMAYDI — smena menejerniki,
+    // kassir shunchaki chiqib ketadi (smena ochiq qolaveradi).
+    if (hasOpenShift && _isManager) {
       final action = await showDialog<String>(
         context: context,
         builder: (dctx) => Dialog(
@@ -223,7 +232,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   }
 
   Widget _content() {
-    switch (_index) {
+    // Kassir Ish vaqti bo'limiga kira olmaydi — 1 tanlansa savdoga qaytadi.
+    final idx = (!_isManager && _index == 1) ? 0 : _index;
+    switch (idx) {
       case 1:
         return const ShiftScreen();
       case 3:
@@ -233,17 +244,28 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         // Smena ochilmagan bo'lsa savdo ham, dostavka ham bloklanadi —
         // aks holda sotuv smenasiz yaratilib Z-hisobotdan tashqarida qoladi.
         final shiftAsync = ref.watch(currentShiftProvider);
+        // Kassir smenani ocha olmaydi — menejerni kutish xabari, tugmasiz.
+        final guardMsg = _isManager
+            ? null
+            : 'Smenani menejer ochadi. Menejer smenani boshlagach savdo '
+                'avtomatik ochiladi.';
         return shiftAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (_, _) => _ShiftGuard(
-            onStart: () => setState(() => _index = 1),
-            message: 'Smena holatini olib bo\'lmadi. Ish vaqti bo\'limidan tekshiring.',
+            onStart: _isManager ? () => setState(() => _index = 1) : null,
+            message: _isManager
+                ? 'Smena holatini olib bo\'lmadi. Ish vaqti bo\'limidan tekshiring.'
+                : guardMsg,
           ),
           data: (shift) {
             if (shift == null || !shift.isOpen) {
-              return _ShiftGuard(onStart: () => setState(() => _index = 1));
+              return _ShiftGuard(
+                onStart:
+                    _isManager ? () => setState(() => _index = 1) : null,
+                message: guardMsg,
+              );
             }
-            return _index == 2 ? const DeliveryScreen() : const PosSaleScreen();
+            return idx == 2 ? const DeliveryScreen() : const PosSaleScreen();
           },
         );
     }
@@ -275,6 +297,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
               onSelect: (i) => setState(() => _index = i),
               onSettings: () => setState(() => _index = 3),
               settingsSelected: _index == 3,
+              showShift: _isManager,
               footer: compact
                   ? Column(children: [
                       refresh,
@@ -383,7 +406,10 @@ class _DlgBtn extends StatelessWidget {
 /// Enter yoki tugma — "Ish vaqti" bo'limiga o'tkazadi.
 class _ShiftGuard extends StatelessWidget {
   const _ShiftGuard({required this.onStart, this.message});
-  final VoidCallback onStart;
+
+  /// null — kassir rejimi: "Smenani boshlash" tugmasi ham, Enter ham yo'q
+  /// (smenani faqat menejer ochadi).
+  final VoidCallback? onStart;
   final String? message;
 
   @override
@@ -391,10 +417,11 @@ class _ShiftGuard extends StatelessWidget {
     return Focus(
       autofocus: true,
       onKeyEvent: (node, event) {
-        if (event is KeyDownEvent &&
+        if (onStart != null &&
+            event is KeyDownEvent &&
             (event.logicalKey == LogicalKeyboardKey.enter ||
                 event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
-          onStart();
+          onStart!();
           return KeyEventResult.handled;
         }
         return KeyEventResult.ignored;
@@ -434,25 +461,27 @@ class _ShiftGuard extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: PosColors.muted, fontSize: 13),
               ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 46,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: PosColors.blue,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+              if (onStart != null) ...[
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: PosColors.blue,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: onStart,
+                    child: const Text('→  Smenani boshlash',
+                        style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w600)),
                   ),
-                  onPressed: onStart,
-                  child: const Text('→  Smenani boshlash',
-                      style: TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w600)),
                 ),
-              ),
-              const SizedBox(height: 10),
-              const Text('Enter — Ish vaqti bo\'limiga o\'tish',
-                  style: TextStyle(color: PosColors.muted, fontSize: 11)),
+                const SizedBox(height: 10),
+                const Text('Enter — Ish vaqti bo\'limiga o\'tish',
+                    style: TextStyle(color: PosColors.muted, fontSize: 11)),
+              ],
             ],
           ),
         ),

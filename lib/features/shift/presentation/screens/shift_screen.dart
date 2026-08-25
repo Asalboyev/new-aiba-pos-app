@@ -48,10 +48,15 @@ class _ShiftScreenState extends ConsumerState<ShiftScreen> {
     super.dispose();
   }
 
+  /// Smena ochish/yopish — FAQAT menejer. Kassir faqat savdo qiladi.
+  bool get _isManager =>
+      (ref.read(sessionProvider)?.staff.role ?? '') != 'cashier';
+
   bool _onKey(KeyEvent event) {
     if (event is! KeyDownEvent || !mounted) return false;
     final route = ModalRoute.of(context);
     if (route != null && !route.isCurrent) return false;
+    if (!_isManager) return false;
     final shift = ref.read(currentShiftProvider).valueOrNull;
     final isOpen = shift != null && shift.isOpen;
     final k = event.logicalKey;
@@ -65,6 +70,14 @@ class _ShiftScreenState extends ConsumerState<ShiftScreen> {
       return true;
     }
     return false;
+  }
+
+  /// Smena nomi — 2 ta 12 soatlik smena: 12:00–00:00 kunduzgi, 00:00–12:00
+  /// tunggi. Ochilgan vaqtiga qarab aniqlanadi.
+  static String _shiftName(DateTime? openedAt) {
+    if (openedAt == null) return '';
+    final h = openedAt.toLocal().hour;
+    return h >= 12 ? 'Kunduzgi smena (12:00–00:00)' : 'Tunggi smena (00:00–12:00)';
   }
 
   Future<void> _open(BuildContext context, WidgetRef ref) async {
@@ -227,7 +240,7 @@ class _ShiftScreenState extends ConsumerState<ShiftScreen> {
                       fontWeight: FontWeight.w700)),
               Text(
                   isOpen && startTime != null
-                      ? '$kassa · Boshlangan: $startTime'
+                      ? '$kassa · ${_shiftName(startedAt)} · Boshlangan: $startTime'
                       : '$kassa · Boshlanmagan',
                   style:
                       const TextStyle(color: PosColors.muted, fontSize: 13)),
@@ -273,14 +286,23 @@ class _ShiftScreenState extends ConsumerState<ShiftScreen> {
           ],
         ),
         const SizedBox(height: 14),
-        // 4) Naqd savdo / Karta savdo / QR savdo (Figma).
+        // 4) To'lov turlari kesimi: Naqd / Karta / Click / Uzum — har biri
+        // alohida (admin paneldagi hisobot bilan bir xil).
         Row(
           children: [
             _MiniTile(label: 'Naqd savdo', value: Money.formatSom(totalCash)),
             const SizedBox(width: 14),
-            _MiniTile(label: 'Karta savdo', value: Money.formatSom(totalCard)),
+            _MiniTile(
+                label: 'Karta savdo',
+                value: Money.formatSom(shift?.cardOnly ?? 0)),
             const SizedBox(width: 14),
-            const _MiniTile(label: 'QR savdo', value: '0'),
+            _MiniTile(
+                label: 'Click savdo',
+                value: Money.formatSom(shift?.clickTotal ?? 0)),
+            const SizedBox(width: 14),
+            _MiniTile(
+                label: 'Uzum savdo',
+                value: Money.formatSom(shift?.uzumTotal ?? 0)),
           ],
         ),
         const SizedBox(height: 14),
@@ -312,26 +334,41 @@ class _ShiftScreenState extends ConsumerState<ShiftScreen> {
           ],
         ),
         const SizedBox(height: 18),
-        // 6) Boshlash / yopish tugmasi.
-        SizedBox(
-          width: double.infinity,
-          height: 60,
-          child: isOpen
-              ? _BigButton(
-                  label: 'Smenani yopish (z)',
-                  icon: Icons.power_settings_new,
-                  color: const Color(0x33E5484D),
-                  textColor: PosColors.red,
-                  onTap: () => _close(context, ref, shift.id),
-                )
-              : _BigButton(
-                  label: '→  Smenani boshlash  (Enter)',
-                  icon: Icons.arrow_forward,
-                  color: PosColors.blue,
-                  textColor: Colors.white,
-                  onTap: () => _open(context, ref),
-                ),
-        ),
+        // 6) Boshlash / yopish tugmasi — FAQAT menejer. Kassir bu ekranni
+        // ko'rmaydi ham, lekin qo'shimcha himoya sifatida tugma yashiriladi.
+        if (_isManager)
+          SizedBox(
+            width: double.infinity,
+            height: 60,
+            child: isOpen
+                ? _BigButton(
+                    label: 'Smenani yopish (z)',
+                    icon: Icons.power_settings_new,
+                    color: const Color(0x33E5484D),
+                    textColor: PosColors.red,
+                    onTap: () => _close(context, ref, shift.id),
+                  )
+                : _BigButton(
+                    label: '→  Smenani boshlash  (Enter)',
+                    icon: Icons.arrow_forward,
+                    color: PosColors.blue,
+                    textColor: Colors.white,
+                    onTap: () => _open(context, ref),
+                  ),
+          )
+        else
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: PosColors.card,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: PosColors.cardBorder),
+            ),
+            child: const Text('Smenani faqat menejer ochadi va yopadi',
+                style: TextStyle(color: PosColors.muted, fontSize: 14)),
+          ),
         const SizedBox(height: 18),
         // 7) Amalga oshmagan buyurtmalar (Figma) — real ro'yxat.
         const _FailedOrdersSection(),

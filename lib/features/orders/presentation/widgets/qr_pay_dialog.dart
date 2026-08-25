@@ -49,6 +49,10 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
   String get _providerCode => _provider == 0 ? 'click' : 'uzum';
   String get _providerName => _providers[_provider].$1;
 
+  /// To'lov usuli — Click va Uzum alohida hisoblanadi (hisobot kesimi).
+  PaymentMethod get _method =>
+      _provider == 0 ? PaymentMethod.click : PaymentMethod.uzum;
+
   final _scan = TextEditingController();
   final _scanFocus = FocusNode();
   bool _processing = false;
@@ -90,7 +94,7 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
   /// Tugma bosildi (mishka/barmoq) — ataylab qilingan harakat, darhol yopiladi.
   void _finishManual() {
     Navigator.of(context).pop([
-      Payment(PaymentMethod.qr, widget.total, label: '$_providerName (qo\'lda)'),
+      Payment(_method, widget.total, label: '$_providerName (qo\'lda)'),
     ]);
   }
 
@@ -126,7 +130,7 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
       if (status == 'paid') {
         // Pul yechildi — order avtomatik yopiladi, fiskal chek chiqadi.
         Navigator.of(context).pop([
-          Payment(PaymentMethod.qr, widget.total, label: _providerName),
+          Payment(_method, widget.total, label: _providerName),
         ]);
         return;
       }

@@ -110,7 +110,10 @@ class _PaymentDialogState extends State<PaymentDialog> {
   String _assetFor(PaymentMethod m) => switch (m) {
         PaymentMethod.cash => 'assets/icons/pay_cash.svg',
         PaymentMethod.card => 'assets/icons/pay_card.svg',
-        PaymentMethod.qr => 'assets/icons/pay_qr_fill.svg',
+        PaymentMethod.qr ||
+        PaymentMethod.click ||
+        PaymentMethod.uzum =>
+          'assets/icons/pay_qr_fill.svg',
         PaymentMethod.keldiKetdi => 'assets/icons/pay_users.svg',
       };
 

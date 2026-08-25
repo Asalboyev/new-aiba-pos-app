@@ -12,6 +12,12 @@ class Shift extends Equatable {
   final int ordersCount;
   final int errorChecksCount;
 
+  /// To'lov turlari kesimi (server `by_method`): karta terminali / Click /
+  /// Uzum alohida — smena hisobotida har biri o'z ustunida.
+  final num cardOnly;
+  final num clickTotal;
+  final num uzumTotal;
+
   const Shift({
     required this.id,
     required this.status,
@@ -23,6 +29,9 @@ class Shift extends Equatable {
     this.totalSales = 0,
     this.ordersCount = 0,
     this.errorChecksCount = 0,
+    this.cardOnly = 0,
+    this.clickTotal = 0,
+    this.uzumTotal = 0,
   });
 
   bool get isOpen => status == 'open';
@@ -39,5 +48,8 @@ class Shift extends Equatable {
         totalSales,
         ordersCount,
         errorChecksCount,
+        cardOnly,
+        clickTotal,
+        uzumTotal,
       ];
 }

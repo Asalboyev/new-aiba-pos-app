@@ -27,6 +27,7 @@ class PosNavRail extends StatelessWidget {
     required this.onSelect,
     required this.onSettings,
     this.settingsSelected = false,
+    this.showShift = true,
     this.footer,
   });
 
@@ -35,6 +36,10 @@ class PosNavRail extends StatelessWidget {
   final ValueChanged<int> onSelect;
   final VoidCallback onSettings;
   final bool settingsSelected;
+
+  /// false — kassir rejimi: "Ish vaqti" bo'limi ko'rsatilmaydi (smena
+  /// boshqaruvi faqat menejerda).
+  final bool showShift;
 
   /// Pastda ko'rinadigan qo'shimcha tugmalar (Yangilash + Avatar). Ular
   /// avval o'ng yuqorida suzib turardi va kichik oynada qidiruv ustiga
@@ -56,12 +61,13 @@ class PosNavRail extends StatelessWidget {
             selected: selectedIndex == 0,
             onTap: () => onSelect(0),
           ),
-          _NavItem(
-            iconAsset: 'assets/icons/nav_shift.svg',
-            label: 'Ish vaqti',
-            selected: selectedIndex == 1,
-            onTap: () => onSelect(1),
-          ),
+          if (showShift)
+            _NavItem(
+              iconAsset: 'assets/icons/nav_shift.svg',
+              label: 'Ish vaqti',
+              selected: selectedIndex == 1,
+              onTap: () => onSelect(1),
+            ),
           _NavItem(
             iconAsset: 'assets/icons/nav_delivery.svg',
             label: 'Yetkazib\nberish',
