@@ -18,13 +18,20 @@ import '../../domain/entities/payment_method.dart';
 /// Tasodifiy yopilmasin: klaviaturada tasdiqlash IKKI bosqichli (Enter → yana
 /// Enter), skanerning ortiqcha Enter'i esa e'tiborga olinmaydi.
 class QrPayDialog extends ConsumerStatefulWidget {
-  const QrPayDialog({super.key, required this.total});
+  const QrPayDialog({super.key, required this.total, this.scanMode = false});
   final num total;
 
-  static Future<List<Payment>?> show(BuildContext context, num total) {
+  /// true — Click Pass rejimi (F10): skaner maydoni ochiq keladi, mijoz
+  /// ko'rsatgan QR o'qiladi va pul avtomatik yechiladi.
+  /// false — statik QR rejimi (F3): mijoz kassadagi QRni ilovasida to'laydi,
+  /// kassir qo'lda tasdiqlaydi. Skaner maydoni ko'rsatilmaydi.
+  final bool scanMode;
+
+  static Future<List<Payment>?> show(BuildContext context, num total,
+      {bool scanMode = false}) {
     return showDialog<List<Payment>>(
       context: context,
-      builder: (_) => QrPayDialog(total: total),
+      builder: (_) => QrPayDialog(total: total, scanMode: scanMode),
     );
   }
 
@@ -60,8 +67,10 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _scanFocus.requestFocus());
+    if (widget.scanMode) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _scanFocus.requestFocus());
+    }
   }
 
   @override
@@ -144,7 +153,13 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
               : '$_providerName avto-yechish sozlanmagan. Mijoz ilovada '
                   'to\'lagach «To\'lash»ni bosing.';
         } else {
-          _error = (data['message'] ?? 'To\'lov amalga oshmadi').toString();
+          // Click/Uzum xatosi (masalan, balansda mablag' yetarli emas) —
+          // sababi bilan ko'rsatiladi, order OCHIQ qoladi.
+          final msg = (data['message'] ?? '').toString();
+          _error = msg.isNotEmpty
+              ? msg
+              : 'To\'lov amalga oshmadi — mijoz balansida mablag\' '
+                  'yetarli emasligini tekshiring';
         }
       });
     } catch (_) {
@@ -182,8 +197,12 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
               if (!_processing) Navigator.of(context).pop();
               return KeyEventResult.handled;
             }
+            // Qo'lda tasdiqlash (Enter×2) — faqat statik QR rejimida.
+            // Skaner rejimida (F10) bo'sh Enter hech narsa qilmaydi: to'lov
+            // faqat mijoz QRi skanerlanganda o'tadi.
             if ((event.logicalKey == LogicalKeyboardKey.enter ||
                     event.logicalKey == LogicalKeyboardKey.numpadEnter) &&
+                !widget.scanMode &&
                 _scan.text.trim().isEmpty) {
               if (!_processing) _manualConfirmKeyboard();
               return KeyEventResult.handled;
@@ -208,7 +227,10 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text('$_providerName orqali to\'lov',
+                    child: Text(
+                        widget.scanMode
+                            ? '$_providerName Pass — mijoz QRini skanerlang'
+                            : '$_providerName orqali to\'lov',
                         style: const TextStyle(
                             color: Colors.white,
                             fontSize: 20,
@@ -262,38 +284,41 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
                     ],
                   ],
                 ),
-                const SizedBox(height: 18),
-                // Skaner maydoni — mijoz KO'RSATGAN QR shu yerga o'qiladi.
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: PosColors.field,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: PosColors.cardBorder),
-                  ),
-                  child: Row(children: [
-                    const Icon(Icons.qr_code_scanner,
-                        color: PosColors.muted, size: 26),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: _scan,
-                        focusNode: _scanFocus,
-                        enabled: !_processing,
-                        onSubmitted: _onScan,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          isCollapsed: true,
-                          border: InputBorder.none,
-                          hintText:
-                              'Mijoz $_providerName QR kodini skanerlang…',
-                          hintStyle:
-                              const TextStyle(color: Color(0xFF5C626A)),
+                // Skaner maydoni — FAQAT Click Pass rejimida (F10): mijoz
+                // KO'RSATGAN QR shu yerga o'qiladi va pul avtomatik yechiladi.
+                if (widget.scanMode) ...[
+                  const SizedBox(height: 18),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: PosColors.field,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: PosColors.blue),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.qr_code_scanner,
+                          color: PosColors.blue, size: 26),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _scan,
+                          focusNode: _scanFocus,
+                          enabled: !_processing,
+                          onSubmitted: _onScan,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            isCollapsed: true,
+                            border: InputBorder.none,
+                            hintText:
+                                'Mijoz $_providerName QR kodini skanerlang…',
+                            hintStyle:
+                                const TextStyle(color: Color(0xFF5C626A)),
+                          ),
                         ),
                       ),
-                    ),
-                  ]),
-                ),
+                    ]),
+                  ),
+                ],
                 if (_processing) ...[
                   const SizedBox(height: 14),
                   Row(
@@ -319,12 +344,18 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
                 ],
                 if (_error == null && _info == null && !_processing) ...[
                   const SizedBox(height: 8),
-                  const Text(
-                    'Mijoz QR ko\'rsatsa — skanerlang: pul yechilishi bilan '
-                    'order O\'ZI yopiladi va chek chiqadi. Mijoz kassadagi '
-                    'QRni ilovada to\'lagan bo\'lsa — Enter, yana Enter '
-                    '(tasdiqlash) · F1 Click · F2 Uzum · Esc — bekor',
-                    style: TextStyle(color: PosColors.muted, fontSize: 12),
+                  Text(
+                    widget.scanMode
+                        ? 'Mijoz ilovasidagi QRni 2D skaner bilan o\'qing — '
+                            'pul yechilishi bilan order O\'ZI yopiladi va '
+                            'fiskal chek chiqadi · F1 Click · F2 Uzum · '
+                            'Esc — bekor'
+                        : 'Mijoz kassadagi $_providerName QRni ilovasida '
+                            'skanerlab to\'laydi. Pul kelganini ko\'rgach — '
+                            'Enter, yana Enter (tasdiqlash) · F1 Click · '
+                            'F2 Uzum · Esc — bekor',
+                    style:
+                        const TextStyle(color: PosColors.muted, fontSize: 12),
                   ),
                 ],
                 const SizedBox(height: 18),
@@ -338,17 +369,21 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
                           : () => Navigator.of(context).pop(),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: _Btn(
-                      label:
-                          "To'lash (${Money.formatSom(widget.total)} $_providerName)",
-                      icon: Icons.check_circle_outline,
-                      filled: true,
-                      onTap: _processing ? null : _finishManual,
+                  // Qo'lda "To'lash" — faqat statik QR rejimida. Skaner
+                  // rejimida to'lov faqat QR o'qilganda o'tadi.
+                  if (!widget.scanMode) ...[
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: _Btn(
+                        label:
+                            "To'lash (${Money.formatSom(widget.total)} $_providerName)",
+                        icon: Icons.check_circle_outline,
+                        filled: true,
+                        onTap: _processing ? null : _finishManual,
+                      ),
                     ),
-                  ),
+                  ],
                 ]),
               ],
             ),

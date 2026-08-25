@@ -123,7 +123,7 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
     if (k == LogicalKeyboardKey.f10) {
       final cart = ref.read(cartProvider);
       if (cart.isEmpty) return false;
-      _checkout(context, ref, PaymentMethod.qr);
+      _checkout(context, ref, PaymentMethod.qr, qrScan: true);
       return true;
     }
     // F12 — oxirgi chekni chop etish (mijoz chek so'rasagina).
@@ -274,7 +274,8 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
   }
 
   Future<void> _checkout(
-      BuildContext context, WidgetRef ref, PaymentMethod method) async {
+      BuildContext context, WidgetRef ref, PaymentMethod method,
+      {bool qrScan = false}) async {
     final cart = ref.read(cartProvider);
     if (cart.isEmpty) return;
 
@@ -289,9 +290,11 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
         Payment(PaymentMethod.keldiKetdi, cart.total, label: 'Keldi-ketdi'),
       ];
     } else if (method == PaymentMethod.qr) {
-      // Click / Uzum: mijoz ko'rsatgan QR skanerlanadi → pul yechilishi bilan
-      // order AVTOMATIK yopiladi va fiskal chek chiqadi.
-      payments = await QrPayDialog.show(context, cart.total);
+      // Click / Uzum. F10 (qrScan=true) — Click Pass: skaner maydoni ochiq,
+      // mijoz QRi o'qilishi bilan pul yechiladi va order AVTOMATIK yopiladi.
+      // F3 (qrScan=false) — statik QR: mijoz kassadagi QRni ilovada to'laydi,
+      // kassir qo'lda tasdiqlaydi.
+      payments = await QrPayDialog.show(context, cart.total, scanMode: qrScan);
     } else {
       payments =
           await PaymentDialog.show(context, cart.total, initialMethod: method);
