@@ -124,7 +124,10 @@ class PrinterService {
       }
       printer.rawBytes(bytes);
       printer.disconnect(delayMs: 200);
-      return const PrintReport(PrintOutcome.printed, 'Chek chop etildi');
+      // Qayerga ketgani ko'rsatiladi — noto'g'ri IP'ga «muvaffaqiyatli»
+      // ketib qog'oz chiqmasligini kassir darhol payqaydi.
+      return PrintReport(PrintOutcome.printed,
+          'Chek chop etildi → IP $host:${_config.printerPort}');
     } catch (e) {
       debugPrint('[PrinterService] print failed: $e');
       return PrintReport(PrintOutcome.failed, 'Chop etish xatosi: $e');
