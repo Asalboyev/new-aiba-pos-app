@@ -9,6 +9,8 @@ import '../../../../core/utils/money.dart';
 import '../../../../core/utils/thousands_formatter.dart';
 import '../../../../core/widgets/pos_chrome.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../../printing/data/receipt_builder.dart';
+import '../../../printing/presentation/printing_providers.dart';
 import '../../../reports/presentation/providers/reports_providers.dart';
 import '../../domain/entities/shift.dart';
 import '../providers/shift_providers.dart';
@@ -117,12 +119,44 @@ class _ShiftScreenState extends ConsumerState<ShiftScreen> {
     );
     if (confirm != true) return;
     try {
-      await ref.read(shiftRepositoryProvider).close(shiftId: shiftId);
+      final z = await ref.read(shiftRepositoryProvider).close(shiftId: shiftId);
       ref.read(sessionProvider.notifier).setShiftId(null);
       ref.invalidate(currentShiftProvider);
-      if (context.mounted) _snack(context, 'Smena yopildi');
+      if (context.mounted) _snack(context, 'Smena yopildi — Z-hisobot chiqarilmoqda');
+      // Z-HISOBOT cheki: smena kesimi (naqd/karta/Click/Uzum/keldi-ketdi,
+      // rasxod, xato cheklar) qog'ozda. Fonda — printer sekin bo'lsa ham
+      // oqim bloklanmaydi.
+      // ignore: unawaited_futures
+      _printZReport(z);
     } catch (e) {
       if (context.mounted) _snack(context, 'Xato: $e');
+    }
+  }
+
+  Future<void> _printZReport(Shift z) async {
+    try {
+      final ses = ref.read(sessionProvider);
+      final bytes = await ReceiptBuilder.buildZReport(
+        restaurantName: ses?.restaurant.name ?? 'AIBA',
+        shiftName: _shiftName(z.openedAt),
+        staffName: ses?.staff.name,
+        openedAt: z.openedAt,
+        closedAt: z.closedAt,
+        ordersCount: z.ordersCount,
+        totalSales: z.totalSales,
+        cash: z.totalCash,
+        card: z.cardOnly,
+        click: z.clickTotal,
+        uzum: z.uzumTotal,
+        keldi: z.keldiTotal,
+        openingCash: z.openingCash,
+        expenses: z.expensesTotal,
+        errorChecks: z.errorChecksCount,
+        paperWidth: ses?.restaurant.receiptPaperWidth ?? 80,
+      );
+      await ref.read(printerServiceProvider).printZReport(bytes);
+    } catch (_) {
+      if (mounted) _snack(context, 'Z-hisobot chop etilmadi (printer)');
     }
   }
 

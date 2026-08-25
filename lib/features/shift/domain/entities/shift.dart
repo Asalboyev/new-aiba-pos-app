@@ -17,6 +17,7 @@ class Shift extends Equatable {
   final num cardOnly;
   final num clickTotal;
   final num uzumTotal;
+  final num keldiTotal;
 
   /// Smena rasxodlari (manager Telegram botdan yozadi) — kassadan minus.
   final num expensesTotal;
@@ -35,6 +36,7 @@ class Shift extends Equatable {
     this.cardOnly = 0,
     this.clickTotal = 0,
     this.uzumTotal = 0,
+    this.keldiTotal = 0,
     this.expensesTotal = 0,
   });
 
@@ -55,6 +57,7 @@ class Shift extends Equatable {
         cardOnly,
         clickTotal,
         uzumTotal,
+        keldiTotal,
         expensesTotal,
       ];
 }

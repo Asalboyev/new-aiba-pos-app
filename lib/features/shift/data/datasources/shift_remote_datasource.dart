@@ -36,6 +36,7 @@ class ShiftRemoteDataSource {
       cardOnly: Money.parse(byMethod['card']),
       clickTotal: Money.parse(byMethod['click']),
       uzumTotal: Money.parse(byMethod['uzum']),
+      keldiTotal: Money.parse(byMethod['keldi_ketdi']),
       expensesTotal: Money.parse(j['expenses_total']),
     );
   }

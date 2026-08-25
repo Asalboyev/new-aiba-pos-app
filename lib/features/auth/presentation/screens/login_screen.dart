@@ -117,13 +117,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         await ref.read(sessionProvider.notifier).logout();
         if (mounted) {
           setState(() => _pin = '');
-          ScaffoldMessenger.of(context)
-            ..clearSnackBars()
-            ..showSnackBar(const SnackBar(
-              duration: Duration(seconds: 5),
-              content: Text(
-                  'Smena ochilmagan — avval menejer smenani ochishi kerak'),
-            ));
+          // ALERT — kassir aniq ko'rsin (snackbar sezilmay qolardi).
+          await showDialog<void>(
+            context: context,
+            builder: (dctx) => AlertDialog(
+              backgroundColor: const Color(0xFF1C1D22),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              title: const Row(children: [
+                Icon(Icons.lock_clock, color: Color(0xFFF5A623), size: 26),
+                SizedBox(width: 10),
+                Text('Smena ochilmagan',
+                    style: TextStyle(color: Colors.white, fontSize: 18)),
+              ]),
+              content: const Text(
+                  'Kassir smena ochilmaguncha kira olmaydi.\n'
+                  'Avval menejer kirib, «Ish vaqti» bo\'limida smenani ochsin.',
+                  style: TextStyle(color: Color(0xFF9AA0A6), height: 1.5)),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dctx).pop(),
+                  child: const Text('Tushunarli'),
+                ),
+              ],
+            ),
+          );
         }
         return;
       }
