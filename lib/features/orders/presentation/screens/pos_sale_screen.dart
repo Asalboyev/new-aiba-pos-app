@@ -270,17 +270,14 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
               duration: const Duration(seconds: 4),
               content: Text(
                   'Xato chek №${errNumber ?? "—"} chiqdi (${r.reason}). '
-                  'Noto\'g\'ri qatorni o\'chirib qayta to\'lang — to\'g\'ri '
-                  'chek o\'sha raqamni oladi · ${rep.message}')));
+                  'Order yopildi — to\'g\'risini qaytadan tering, chek '
+                  'o\'sha raqamni oladi · ${rep.message}')));
       }
-      // MUHIM: savat TOZALANMAYDI — kassir noto'g'ri qatorni o'chirib
-      // (masalan 4 ta somsa → 3 ta), qolganini qayta to'laydi. To'g'irlangan
-      // chek AYNAN o'sha raqam bilan chiqadi. Mijoz butunlay ketgan bo'lsa —
-      // qatorlarni Delete bilan o'chirib tashlaysiz.
-      posSearchFocusNode.requestFocus();
-      return;
     }
 
+    // Xato chekdan keyin ham, oddiy bekor qilishда ham order YOPILADI —
+    // savat tozalanadi. Kassir to'g'ri mahsulotlarni qaytadan teradi;
+    // to'g'irlangan chek AYNAN o'sha raqam bilan chiqadi.
     final hadTabs = notifier.orderCount > 1;
     notifier.finishActiveOrder();
     if (hadTabs && context.mounted) _toast(context, 'Zakaz yopildi');
