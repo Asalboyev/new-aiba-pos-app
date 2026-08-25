@@ -42,6 +42,10 @@ String? _lastErrorCheckNumber;
 ReceiptData? _lastReceipt;
 CheckoutResult? _lastResult;
 
+/// Chek logosi keshi (url → baytlar) — har chekda qayta yuklamaslik uchun
+/// (sekundlarga tezlashadi, ayniqsa sekin tarmoqda).
+final Map<String, List<int>> _logoCache = {};
+
 class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
   @override
   void initState() {
@@ -263,8 +267,18 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
         ScaffoldMessenger.of(context)
           ..clearSnackBars()
           ..showSnackBar(SnackBar(
-              content: Text('Xato chek: ${r.reason} · ${rep.message}')));
+              duration: const Duration(seconds: 4),
+              content: Text(
+                  'Xato chek №${errNumber ?? "—"} chiqdi (${r.reason}). '
+                  'Noto\'g\'ri qatorni o\'chirib qayta to\'lang — to\'g\'ri '
+                  'chek o\'sha raqamni oladi · ${rep.message}')));
       }
+      // MUHIM: savat TOZALANMAYDI — kassir noto'g'ri qatorni o'chirib
+      // (masalan 4 ta somsa → 3 ta), qolganini qayta to'laydi. To'g'irlangan
+      // chek AYNAN o'sha raqam bilan chiqadi. Mijoz butunlay ketgan bo'lsa —
+      // qatorlarni Delete bilan o'chirib tashlaysiz.
+      posSearchFocusNode.requestFocus();
+      return;
     }
 
     final hadTabs = notifier.orderCount > 1;
@@ -393,8 +407,11 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
       final cashOnly = draft.payments.every((p) =>
           p.method == PaymentMethod.cash ||
           p.method == PaymentMethod.keldiKetdi);
+      // To'g'irlangan chek (xato chek o'rniga) — naqd bo'lsa ham DOIM
+      // chiqadi: mijozda xato chek bor, to'g'risi ham qo'lida bo'lishi kerak.
+      final isCorrection = receipt.replacesErrorNumber != null;
       final offlineNote = result.synced ? '' : ' · Oflayn saqlandi';
-      if (cashOnly) {
+      if (cashOnly && !isCorrection) {
         _toast(context, 'To\'landi ✓$offlineNote · Chek kerak bo\'lsa — F12');
       } else {
         _toast(context, 'To\'landi ✓$offlineNote · Chek chiqarilmoqda');
@@ -428,7 +445,9 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
     List<int>? logoBytes;
     final logoUrl = useFresh ? freshR.receiptLogoUrl : null;
     if (logoUrl != null && logoUrl.isNotEmpty) {
-      logoBytes = await ref.read(dioClientProvider).fetchBytes(logoUrl);
+      logoBytes = _logoCache[logoUrl] ??
+          await ref.read(dioClientProvider).fetchBytes(logoUrl);
+      if (logoBytes != null) _logoCache[logoUrl] = logoBytes;
     }
     final freshReceipt = ReceiptData(
       restaurantName: useFresh ? freshR.name : receipt.restaurantName,
