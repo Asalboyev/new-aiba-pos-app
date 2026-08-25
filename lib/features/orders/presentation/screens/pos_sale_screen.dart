@@ -233,12 +233,9 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
       }
     }
 
-    if (notifier.orderCount <= 1) {
-      notifier.clear();
-    } else {
-      notifier.closeOrder(notifier.activeOrder);
-      if (context.mounted) _toast(context, 'Zakaz yopildi');
-    }
+    final hadTabs = notifier.orderCount > 1;
+    notifier.finishActiveOrder();
+    if (hadTabs && context.mounted) _toast(context, 'Zakaz yopildi');
     posSearchFocusNode.requestFocus();
   }
 
@@ -454,7 +451,9 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
       },
     );
 
-    ref.read(cartProvider.notifier).clear();
+    // To'langan zakaz tabi yopiladi (F7 bilan ochilgan qo'shimcha tab bo'lsa),
+    // yagona tab bo'lsa tozalanadi.
+    ref.read(cartProvider.notifier).finishActiveOrder();
 
     // 4) If we were offline, the order is queued; nudge a background push.
     if (!result.synced) {
