@@ -14,9 +14,8 @@ import '../../domain/entities/payment_method.dart';
 /// order AVTOMATIK yopiladi va fiskal chek chiqadi. Kassir hech narsa bosmaydi.
 ///
 /// Zaxira yo'l: mijoz kassadagi STATIK QRni o'z ilovasida skanerlab to'laydi —
-/// kassir pul kelganini ko'rib «To'lash»ni bosadi (qo'lda tasdiqlash).
-/// Tasodifiy yopilmasin: klaviaturada tasdiqlash IKKI bosqichli (Enter → yana
-/// Enter), skanerning ortiqcha Enter'i esa e'tiborga olinmaydi.
+/// kassir pul kelganini ko'rib Enter/«To'lash» bilan tasdiqlaydi va chek
+/// chiqadi. Skaner maydoni bu rejimda yo'q, shu sabab tasodifiy Enter xavfsiz.
 class QrPayDialog extends ConsumerStatefulWidget {
   const QrPayDialog({super.key, required this.total, this.scanMode = false});
   final num total;
@@ -60,10 +59,6 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
   /// oynada kelib qolsa, uni qo'lda tasdiqlash deb qabul QILMAYMIZ.
   DateTime? _lastScanAt;
 
-  /// Ikki bosqichli qo'lda tasdiqlash: birinchi Enter "qurollaydi",
-  /// ikkinchisi (6s ichida) tasdiqlaydi. Tasodifiy yopilishdan himoya.
-  DateTime? _armedAt;
-
   @override
   void initState() {
     super.initState();
@@ -80,25 +75,16 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
     super.dispose();
   }
 
-  /// Qo'lda tasdiqlash (klaviatura): Enter → ogohlantirish, yana Enter →
-  /// order yopiladi. Skaner dumi (2s ichida) e'tiborga olinmaydi.
+  /// Qo'lda tasdiqlash (klaviatura, statik QR rejimi): Enter — darhol
+  /// tasdiqlanadi va chek chiqadi. Bu rejimda skaner maydoni yo'q, shuning
+  /// uchun tasodifiy skaner-Enter xavfi ham yo'q.
   void _manualConfirmKeyboard() {
     final now = DateTime.now();
     if (_lastScanAt != null &&
         now.difference(_lastScanAt!) < const Duration(seconds: 2)) {
       return; // skanerning ortiqcha Enter'i
     }
-    if (_armedAt != null &&
-        now.difference(_armedAt!) < const Duration(seconds: 6)) {
-      _finishManual();
-      return;
-    }
-    setState(() {
-      _armedAt = now;
-      _error = null;
-      _info =
-          'Mijoz to\'laganini tekshirdingizmi? Tasdiqlash uchun YANA Enter bosing';
-    });
+    _finishManual();
   }
 
   /// Tugma bosildi (mishka/barmoq) — ataylab qilingan harakat, darhol yopiladi.
@@ -124,7 +110,6 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
       _processing = true;
       _error = null;
       _info = null;
-      _armedAt = null;
     });
     try {
       final res = await ref.read(dioClientProvider).post(
@@ -352,7 +337,7 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
                             'Esc — bekor'
                         : 'Mijoz kassadagi $_providerName QRni ilovasida '
                             'skanerlab to\'laydi. Pul kelganini ko\'rgach — '
-                            'Enter, yana Enter (tasdiqlash) · F1 Click · '
+                            'Enter (tasdiqlash, chek chiqadi) · F1 Click · '
                             'F2 Uzum · Esc — bekor',
                     style:
                         const TextStyle(color: PosColors.muted, fontSize: 12),
