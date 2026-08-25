@@ -574,24 +574,35 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
     final r = await ErrorCheckDialog.show(context);
     if (r == null) return;
     var ok = false;
+    String? fiscalAction;
     final oid = res.orderId;
     if (oid != null) {
       try {
-        await ref.read(dioClientProvider).post(
+        final resp = await ref.read(dioClientProvider).post(
           '/api/v2/pos-terminal/orders/$oid/mark-error',
           data: {'reason': r.reason, 'note': r.note},
         );
         ok = true;
+        fiscalAction =
+            (resp.data is Map ? (resp.data as Map)['fiscal'] : null)?.toString();
       } catch (_) {}
     }
     // Keyingi to'g'ri chek AYNAN shu raqamni oladi.
     _lastErrorCheckNumber = (rec.orderNumber ?? '').replaceAll('#', '');
     await _printErrorCopy(ref, rec, r.reason);
     if (context.mounted) {
+      // Soliq holati ham ko'rsatiladi: qaytarish cheki ketdimi yoki fiskal
+      // umuman yuborilmasdan bekor qilindimi.
+      final soliq = switch (fiscalAction) {
+        'refund_queued' => ' · Soliqqa QAYTARISH cheki yuborildi',
+        'refund_exists' => ' · Qaytarish cheki avvalroq yuborilgan',
+        'cancelled' => ' · Fiskal chek soliqqa yuborilmasdan bekor qilindi',
+        _ => '',
+      };
       _toast(
           context,
           ok
-              ? 'Xato chek deb belgilandi: ${r.reason}'
+              ? 'Xato chek deb belgilandi: ${r.reason}$soliq'
               : 'Belgilandi (oflayn): ${r.reason}');
     }
   }
