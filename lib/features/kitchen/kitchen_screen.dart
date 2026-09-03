@@ -372,9 +372,15 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
       behavior: SnackBarBehavior.floating,
       backgroundColor: online ? PosColors.green : PosColors.red,
       content: Text(online
-          ? 'Buyurtma qo\'shildi — POS va TV yangilandi'
-          : 'OFLAYN saqlandi — internet qaytishi bilan yuboriladi'),
+          ? 'Buyurtma qo\'shildi — POS va TV yangilandi. Chiqilmoqda…'
+          : 'OFLAYN saqlandi — internet qaytishi bilan yuboriladi. Chiqilmoqda…'),
     ));
+    // Tasdiqlagach AVTOMATIK CHIQISH: oshxona planshetida bir necha oshpaz
+    // navbat bilan ishlaydi — keyingisi o'z kodi bilan kiradi, oldingisining
+    // nomidan kirim qilinmaydi.
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+    if (!mounted) return;
+    await ref.read(sessionProvider.notifier).logout();
   }
 
   @override
