@@ -1,0 +1,70 @@
+name: Build macOS
+
+# macOS o'rnatish paketi (.dmg + .zip). Windows bilan bir xil oqim: push'da
+# quriladi, artifakt sifatida saqlanadi va «latest» Release'ga yuklanadi —
+# mijoz bitta sahifadan yuklab oladi. Notarizatsiya YO'Q (Apple Developer
+# hisobi kerak), shuning uchun birinchi ochishda «o'ng tugma → Ochish».
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Enable macOS desktop
+        run: flutter config --enable-macos-desktop
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build macOS release
+        run: flutter build macos --release
+
+      - name: Package .zip and .dmg
+        run: |
+          set -e
+          VER=$(grep -m1 '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
+          APP="build/macos/Build/Products/Release/AIBA POS.app"
+          mkdir -p dist
+          ditto -c -k --keepParent "$APP" "dist/AIBA-POS-macOS-$VER.zip"
+          STG=$(mktemp -d); cp -R "$APP" "$STG/"; ln -s /Applications "$STG/Applications"
+          hdiutil create -quiet -volname "AIBA POS" -srcfolder "$STG" -ov -format UDZO "dist/AIBA-POS-macOS-$VER.dmg"
+          ls -la dist
+          echo "VER=$VER" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aiba-pos-macos
+          path: dist/
+          retention-days: 30
+
+      # Bitta doimiy «latest» Release — har push yangilaydi. Mijozga
+      # beriladigan havola o'zgarmaydi:
+      # https://github.com/<owner>/<repo>/releases/tag/latest
+      - name: Publish to "latest" release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: AIBA POS — oxirgi build
+          body: |
+            macOS: `.dmg`ni oching, «AIBA POS»ni Applications'ga torting.
+            Birinchi ochishda: o'ng tugma → Ochish (notarizatsiya yo'q).
+            Windows: `build-windows` artifaktidan installer.
+          files: dist/*
+          prerelease: false
