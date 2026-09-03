@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/providers/core_providers.dart';
 import '../../data/datasources/menu_local_datasource.dart';
@@ -28,9 +31,54 @@ final categoriesProvider = FutureProvider<List<Category>>((ref) {
   return ref.watch(menuRepositoryProvider).cachedCategories();
 });
 
-/// Products from the local cache.
-final productsProvider = FutureProvider<List<Product>>((ref) {
-  return ref.watch(menuRepositoryProvider).cachedProducts();
+/// OSHXONA STOP-LIST ({product_id: {qty, stopped}}) — har sinxronda keladi,
+/// menyu qayta yuborilmasa ham. Kassa uni keshdagi mahsulot ustiga qo'yadi.
+final kitchenFlagsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  final raw = prefs.getString('menu_kitchen');
+  if (raw == null || raw.isEmpty) return const {};
+  try {
+    return (jsonDecode(raw) as Map).cast<String, dynamic>();
+  } catch (_) {
+    return const {};
+  }
+});
+
+/// Products from the local cache + oshxona stop-listi ustidan qo'yilgan holda.
+final productsProvider = FutureProvider<List<Product>>((ref) async {
+  final list = await ref.watch(menuRepositoryProvider).cachedProducts();
+  final kitchen = await ref.watch(kitchenFlagsProvider.future);
+  if (kitchen.isEmpty) return list;
+  return [
+    for (final p in list)
+      switch (kitchen[p.id]) {
+        final Map k => p.copyWithStock(
+            trackStock: true,
+            stockQty: k['stopped'] == true
+                ? 0
+                : ((k['qty'] ?? 0) as num),
+          ),
+        _ => p,
+      },
+  ];
+});
+
+/// Oxirgi sinxronda kelgan ommaboplik xaritasi ({product_id: sotilgan soni},
+/// 30 kun, filialga xos). Har sync'da qayta o'qish uchun refreshTick bilan
+/// invalidate qilinadi (menu repository saqlab qo'yadi).
+final popularityProvider = FutureProvider<Map<String, double>>((ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  final raw = prefs.getString('menu_popularity');
+  if (raw == null) return const {};
+  try {
+    final m = <String, double>{};
+    (jsonDecode(raw) as Map).forEach((k, v) {
+      m[k.toString()] = (v is num) ? v.toDouble() : double.tryParse('$v') ?? 0;
+    });
+    return m;
+  } catch (_) {
+    return const {};
+  }
 });
 
 /// Currently selected category id (null = "All").
@@ -75,6 +123,22 @@ final filteredProductsProvider = Provider<List<Product>>((ref) {
   var list = products.where((p) => !p.markingRequired).toList();
   if (selected != null) {
     list = list.where((p) => p.categoryId == selected).toList();
+  }
+  if (q.isEmpty) {
+    // ENG KO'P SOTILGANLAR TEPADA (filialga xos, oxirgi 30 kun) — kassir
+    // ommabop mahsulotni qidirmasdan birinchi qatordan oladi. Sotilmaganlari
+    // nom bo'yicha tartibda pastda qoladi. Qidiruvda esa aniqlik saralashi
+    // (pastdagi rank) ustun.
+    final pop = ref.watch(popularityProvider).maybeWhen(
+          data: (m) => m,
+          orElse: () => const <String, double>{},
+        );
+    if (pop.isNotEmpty) {
+      list.sort((a, b) {
+        final d = (pop[b.id] ?? 0).compareTo(pop[a.id] ?? 0);
+        return d != 0 ? d : a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+    }
   }
   if (q.isNotEmpty) {
     // Nom + kod (SKU) + MXIK bo'yicha qidiramiz — kassir kodni tersa

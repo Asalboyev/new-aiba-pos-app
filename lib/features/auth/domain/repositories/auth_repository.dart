@@ -24,4 +24,8 @@ abstract class AuthRepository {
 
   /// Clear token + persisted session.
   Future<void> logout();
+
+  /// true — oxirgi kirish SERVERSIZ (mahalliy saqlangan parol) bo'ldi.
+  /// Ekranda «oflayn rejim» belgisini ko'rsatish uchun.
+  bool get lastLoginWasOffline;
 }

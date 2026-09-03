@@ -51,6 +51,27 @@ class Product extends Equatable {
     return u == 'kg' || u == 'кг' || u == 'kilogramm' || u == 'килограмм';
   }
 
+  /// Oshxona stop-listini mahsulot ustiga qo'yish uchun (sync'da menyu
+  /// qayta yuborilmaganda ham «Tugadi» darhol ko'rinsin).
+  Product copyWithStock({required bool trackStock, required num stockQty}) =>
+      Product(
+        id: id,
+        categoryId: categoryId,
+        name: name,
+        price: price,
+        unit: unit,
+        imageUrl: imageUrl,
+        isActive: isActive,
+        vatPercent: vatPercent,
+        mxikCode: mxikCode,
+        sku: sku,
+        packageCode: packageCode,
+        markingRequired: markingRequired,
+        trackStock: trackStock,
+        stockQty: stockQty,
+        lowStockThreshold: lowStockThreshold,
+      );
+
   /// Sotib bo'lmaydi (ombor tugagan).
   bool get outOfStock => trackStock && stockQty <= 0;
   /// Kam qoldi (turli chip).

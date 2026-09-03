@@ -33,7 +33,12 @@ class PaymentDialog extends StatefulWidget {
 
 /// Bo'lib to'lashda tanlanadigan real usullar (keldi-ketdi bu yerda emas —
 /// u VIP comp, alohida oqim).
-const _splitMethods = [PaymentMethod.cash, PaymentMethod.card, PaymentMethod.qr];
+const _splitMethods = [
+  PaymentMethod.cash,
+  PaymentMethod.uzcard,
+  PaymentMethod.humo,
+  PaymentMethod.qr,
+];
 
 class _PaymentDialogState extends State<PaymentDialog> {
   final List<Payment> _parts = [];
@@ -122,7 +127,10 @@ class _PaymentDialogState extends State<PaymentDialog> {
 
   String _assetFor(PaymentMethod m) => switch (m) {
         PaymentMethod.cash => 'assets/icons/pay_cash.svg',
-        PaymentMethod.card => 'assets/icons/pay_card.svg',
+        PaymentMethod.card ||
+        PaymentMethod.uzcard ||
+        PaymentMethod.humo =>
+          'assets/icons/pay_card.svg',
         PaymentMethod.qr ||
         PaymentMethod.click ||
         PaymentMethod.uzum =>
@@ -158,7 +166,15 @@ class _PaymentDialogState extends State<PaymentDialog> {
           // (savdo ekranidagi klavishalar bilan bir xil).
           PaymentMethod? pick;
           if (e.logicalKey == LogicalKeyboardKey.f5) pick = PaymentMethod.cash;
-          if (e.logicalKey == LogicalKeyboardKey.f4) pick = PaymentMethod.card;
+          // F4 — karta: birinchi bosishda UzCard, yana bosilsa Humo
+          // (ikki tarmoq orasida aylanadi). F1 — UzCard, F2 — Humo (to'g'ridan).
+          if (e.logicalKey == LogicalKeyboardKey.f4) {
+            pick = _method == PaymentMethod.uzcard
+                ? PaymentMethod.humo
+                : PaymentMethod.uzcard;
+          }
+          if (e.logicalKey == LogicalKeyboardKey.f1) pick = PaymentMethod.uzcard;
+          if (e.logicalKey == LogicalKeyboardKey.f2) pick = PaymentMethod.humo;
           if (e.logicalKey == LogicalKeyboardKey.f3) pick = PaymentMethod.qr;
           if (pick != null && !_used(pick)) {
             setState(() {
@@ -238,6 +254,34 @@ class _PaymentDialogState extends State<PaymentDialog> {
                   ],
                 ]),
               ),
+              // KARTA rejimi — F3 (Click|Uzum) dialogidagidek IKKI plitka:
+              // UzCard | Humo. F1/F2/F4 bilan ham almashadi.
+              if (_method == PaymentMethod.uzcard ||
+                  _method == PaymentMethod.humo) ...[
+                const SizedBox(height: 14),
+                const Text("To'lov turi",
+                    style: TextStyle(color: PosColors.label, fontSize: 13)),
+                const SizedBox(height: 8),
+                Row(children: [
+                  Expanded(
+                    child: _MethodTile(
+                      iconAsset: 'assets/icons/pay_card.svg',
+                      label: 'UzCard',
+                      selected: _method == PaymentMethod.uzcard,
+                      onTap: () => _selectMethod(PaymentMethod.uzcard),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _MethodTile(
+                      iconAsset: 'assets/icons/pay_card.svg',
+                      label: 'Humo',
+                      selected: _method == PaymentMethod.humo,
+                      onTap: () => _selectMethod(PaymentMethod.humo),
+                    ),
+                  ),
+                ]),
+              ],
               // Qo'shilgan qismlar.
               if (_inSplit) ...[
                 const SizedBox(height: 12),
@@ -369,8 +413,8 @@ class _PaymentDialogState extends State<PaymentDialog> {
               const SizedBox(height: 10),
               const Center(
                 child: Text(
-                  'Summani tering · Enter — To\'lash · F5 naqd · F4 karta · '
-                  'F3 QR · Esc — bekor',
+                  'Summani tering · Enter — To\'lash · F5 naqd · '
+                  'F1 UzCard · F2 Humo · F3 QR · Esc — bekor',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Color(0xFF5C626A), fontSize: 11.5),
                 ),
@@ -466,16 +510,25 @@ class _MethodTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: selected ? PosColors.blue : PosColors.cardBorder),
         ),
+        // To'rtta usul (Naqd/Uzcard/Humo/QR) tor ekranda bir qatorga
+        // sig'ishi kerak — yozuv joyiga qarab qisqaradi, chetga chiqmaydi.
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           SvgPicture.asset(iconAsset,
               width: 20,
               height: 20,
               colorFilter:
                   const ColorFilter.mode(Colors.white, BlendMode.srcIn)),
-          const SizedBox(width: 8),
-          Text(label,
-              style: const TextStyle(
-                  color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+          const SizedBox(width: 7),
+          Flexible(
+            child: Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600)),
+          ),
         ]),
       ),
     );

@@ -18,6 +18,20 @@ class ShiftRemoteDataSource {
     final byMethod = (j['by_method'] is Map)
         ? (j['by_method'] as Map).cast<String, dynamic>()
         : const <String, dynamic>{};
+    final online = (j['online'] is Map)
+        ? (j['online'] as Map).cast<String, dynamic>()
+        : const <String, dynamic>{};
+    final byChannel = <String, ({int count, num total})>{};
+    if (online['by_channel'] is Map) {
+      (online['by_channel'] as Map).forEach((k, v) {
+        if (v is Map) {
+          byChannel['$k'] = (
+            count: int.tryParse('${v['count']}') ?? 0,
+            total: num.tryParse('${v['total']}') ?? 0,
+          );
+        }
+      });
+    }
     return Shift(
       id: (j['id'] ?? '').toString(),
       status: (j['status'] ?? 'open').toString(),
@@ -39,10 +53,15 @@ class ShiftRemoteDataSource {
       cashNoQrTotal: num.tryParse('${j['cash_noqr_total']}') ?? 0,
       cashNoQrCount: int.tryParse('${j['cash_noqr_count']}') ?? 0,
       cardOnly: Money.parse(byMethod['card']),
+      uzcardTotal: Money.parse(byMethod['uzcard']),
+      humoTotal: Money.parse(byMethod['humo']),
       clickTotal: Money.parse(byMethod['click']),
       uzumTotal: Money.parse(byMethod['uzum']),
       keldiTotal: Money.parse(byMethod['keldi_ketdi']),
       expensesTotal: Money.parse(j['expenses_total']),
+      onlineByChannel: byChannel,
+      onlineCount: int.tryParse('${online['count']}') ?? 0,
+      onlineTotal: num.tryParse('${online['total']}') ?? 0,
     );
   }
 

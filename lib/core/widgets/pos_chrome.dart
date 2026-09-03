@@ -30,7 +30,10 @@ class PosNavRail extends StatelessWidget {
     this.showShift = true,
     this.showSettings = true,
     this.footer,
+    this.deliveryBadge = 0,
   });
+
+  /// «Yetkazib berish» yonidagi hisob — tasdiq kutayotgan buyurtmalar.
 
   /// 0 = Mahsulotlar, 1 = Ish vaqti, 2 = Yetkazib berish. -1 = hech biri.
   final int selectedIndex;
@@ -50,6 +53,7 @@ class PosNavRail extends StatelessWidget {
   /// avval o'ng yuqorida suzib turardi va kichik oynada qidiruv ustiga
   /// chiqib ketardi — shuning uchun menyuning ichiga ko'chirildi.
   final Widget? footer;
+  final int deliveryBadge;
 
   @override
   Widget build(BuildContext context) {
@@ -78,6 +82,7 @@ class PosNavRail extends StatelessWidget {
             label: 'Yetkazib\nberish',
             selected: selectedIndex == 2,
             onTap: () => onSelect(2),
+            badge: deliveryBadge,
           ),
           const Spacer(),
           if (footer != null) ...[
@@ -125,11 +130,17 @@ class _NavItem extends StatefulWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.badge = 0,
   });
   final String iconAsset;
   final String label;
   final bool selected;
   final VoidCallback onTap;
+
+  /// Ikonka ustidagi hisob (0 — ko'rinmaydi). Yetkazib berishda TASDIQ
+  /// KUTAYOTGAN buyurtmalar soni: kassir boshqa bo'limda ishlab
+  /// turganda ham yangi buyurtma kelganini ko'rishi kerak.
+  final int badge;
 
   @override
   State<_NavItem> createState() => _NavItemState();
@@ -172,10 +183,41 @@ class _NavItemState extends State<_NavItem> {
                 SizedBox(
                   width: 24,
                   height: 24,
-                  child: SvgPicture.asset(
-                    widget.iconAsset,
-                    colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
-                    fit: BoxFit.contain,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      SvgPicture.asset(
+                        widget.iconAsset,
+                        colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+                        fit: BoxFit.contain,
+                      ),
+                      if (widget.badge > 0)
+                        Positioned(
+                          right: -7,
+                          top: -5,
+                          child: Container(
+                            constraints: const BoxConstraints(minWidth: 17),
+                            height: 17,
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                              color: PosColors.red,
+                              borderRadius: BorderRadius.circular(9),
+                              // Suv fonida ajralib turishi uchun halqa.
+                              border: Border.all(
+                                  color: PosColors.bg, width: 1.5),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              widget.badge > 99 ? '99+' : '${widget.badge}',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  height: 1,
+                                  fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 7),

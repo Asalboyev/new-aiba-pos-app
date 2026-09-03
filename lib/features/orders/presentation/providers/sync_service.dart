@@ -76,8 +76,14 @@ class SyncService extends StateNotifier<SyncState> {
       final menuOk = await _ref.read(menuRepositoryProvider).refreshFromServer();
       if (menuOk) {
         _ref.invalidate(categoriesProvider);
-        _ref.invalidate(productsProvider);
       }
+      // Stop-list menyudan mustaqil o'zgaradi (taom tugadi/qaytadi) —
+      // shuning uchun mahsulotlar ro'yxati HAR sinxronda qayta teriladi.
+      _ref.invalidate(kitchenFlagsProvider);
+      _ref.invalidate(productsProvider);
+      // Ommaboplik xaritasi har sync'da yangilanadi (menyu o'zgarmasa ham
+      // savdo tartibi o'zgargan bo'lishi mumkin) — grid qayta teriladi.
+      _ref.invalidate(popularityProvider);
       // Adminka chek sozlamalarini o'zgartirgan bo'lishi mumkin — cache'ni
       // yangilaymiz. Sinxronlash tugmasi bilan qo'lda ham chaqirsa bo'ladi.
       await _ref.read(sessionProvider.notifier).refreshRestaurant();

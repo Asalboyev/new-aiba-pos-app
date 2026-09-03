@@ -1,3 +1,4 @@
+import '../../delivery/data/delivery_api.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -242,9 +243,23 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       case 3:
         return const SettingsScreen(embedded: true);
       case 2:
+        // YETKAZIB BERISH smena bilan BLOKLANMAYDI.
+        //
+        // Avval savdo bilan bir xil qo'riqchi ostida edi va shu muammoni
+        // berardi: smena OCHIQ turgan holda ham «Smena ochilmagan» chiqib
+        // kassir online buyurtmalarni ko'rmay qolardi — smena holatini
+        // so'rash bir marta yiqilsa (tarmoq/timeout) `error` shoxi
+        // ishlagan.
+        //
+        // Mantiqan ham to'g'ri: ro'yxatni KO'RISH savdo yaratish emas.
+        // Buyurtmalar kelib turadi va kassir ularni ko'rishi kerak.
+        // Tasdiqlashda esa chek serverda yoziladi va server smenani
+        // o'zi topadi/ochadi (`resolve_or_open_shift`) — ya'ni savdo
+        // smenasiz qolmaydi.
+        return const DeliveryScreen();
       default:
-        // Smena ochilmagan bo'lsa savdo ham, dostavka ham bloklanadi —
-        // aks holda sotuv smenasiz yaratilib Z-hisobotdan tashqarida qoladi.
+        // SAVDO smena ochilmasa bloklanadi — aks holda sotuv smenasiz
+        // yaratilib Z-hisobotdan tashqarida qoladi.
         final shiftAsync = ref.watch(currentShiftProvider);
         // Kassir smenani ocha olmaydi — menejerni kutish xabari, tugmasiz.
         final guardMsg = _isManager
@@ -253,11 +268,14 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                 'avtomatik ochiladi.';
         return shiftAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
+          // XATO (tarmoq/timeout) — bu «smena yo'q» degani EMAS.
+          // Shuning uchun qayta urinish tugmasi beriladi, aks holda
+          // kassir bir marta uzilish tufayli ishlay olmay qolardi.
           error: (_, _) => _ShiftGuard(
-            onStart: _isManager ? () => setState(() => _index = 1) : null,
-            message: _isManager
-                ? 'Smena holatini olib bo\'lmadi. Ish vaqti bo\'limidan tekshiring.'
-                : guardMsg,
+            onStart: () => ref.invalidate(currentShiftProvider),
+            startLabel: 'Qayta urinish',
+            message: 'Smena holatini olib bo\'lmadi — internetni tekshirib '
+                'qayta urinib ko\'ring.',
           ),
           data: (shift) {
             if (shift == null || !shift.isOpen) {
@@ -294,11 +312,18 @@ class _HomeShellState extends ConsumerState<HomeShell> {
               onLogout: _logout,
               compact: compact,
             );
+            // Tasdiq kutayotgan online buyurtmalar — menyu yonida
+            // ko'rinadi, shunda kassir boshqa bo'limda ishlab turganda
+            // ham yangi buyurtma kelganini payqaydi. Ro'yxatning o'zi
+            // server oqimi (SSE) bilan yangilanadi, ya'ni bu hisob ham
+            // darhol o'zgaradi.
+            final pending = ref.watch(deliveryProvider).counts['yangi'] ?? 0;
             final rail = PosNavRail(
               selectedIndex: _index,
               onSelect: (i) => setState(() => _index = i),
               onSettings: () => setState(() => _index = 3),
               settingsSelected: _index == 3,
+              deliveryBadge: pending,
               showShift: _isManager,
               showSettings: _isManager,
               footer: compact
@@ -408,12 +433,16 @@ class _DlgBtn extends StatelessWidget {
 /// Smena ochilmagan holatdagi to'siq — savdo ekrani o'rnida chiqadi.
 /// Enter yoki tugma — "Ish vaqti" bo'limiga o'tkazadi.
 class _ShiftGuard extends StatelessWidget {
-  const _ShiftGuard({required this.onStart, this.message});
+  const _ShiftGuard({required this.onStart, this.message, this.startLabel});
 
   /// null — kassir rejimi: "Smenani boshlash" tugmasi ham, Enter ham yo'q
   /// (smenani faqat menejer ochadi).
   final VoidCallback? onStart;
   final String? message;
+
+  /// Tugma yozuvi. Standart — «Smenani boshlash»; tarmoq xatosida
+  /// «Qayta urinish» bo'ladi (smena yo'q degani emas).
+  final String? startLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -476,13 +505,14 @@ class _ShiftGuard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(10)),
                     ),
                     onPressed: onStart,
-                    child: const Text('→  Smenani boshlash',
-                        style: TextStyle(
+                    child: Text(startLabel ?? '→  Smenani boshlash',
+                        style: const TextStyle(
                             fontSize: 15, fontWeight: FontWeight.w600)),
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Text('Enter — Ish vaqti bo\'limiga o\'tish',
+                if (startLabel == null)
+                  const Text('Enter — Ish vaqti bo\'limiga o\'tish',
                     style: TextStyle(color: PosColors.muted, fontSize: 11)),
               ],
             ],

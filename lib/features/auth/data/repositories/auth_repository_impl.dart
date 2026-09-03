@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/auth/offline_login_store.dart';
 import '../../../../core/config/app_config.dart';
+import '../../../../core/errors/failure.dart';
 import '../../domain/entities/auth_session.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_datasource.dart';
@@ -21,7 +24,16 @@ class AuthRepositoryImpl implements AuthRepository {
   final AppConfig _config;
   final SharedPreferences _prefs;
 
+  late final OfflineLoginStore _offline = OfflineLoginStore(_prefs);
+
   static const _kSession = 'auth_session';
+  /// Oxirgi kirish OFLAYN (mahalliy xesh) bo'lganini belgilaydi — UI shuni
+  /// ko'rsatadi, sinxronizatsiya esa internet qaytishi bilan o'zi ishlaydi.
+  static const _kOfflineLogin = 'auth_offline_login';
+
+  /// true — joriy sessiya serversiz, mahalliy paroldan tiklangan.
+  @override
+  bool get lastLoginWasOffline => _prefs.getBool(_kOfflineLogin) ?? false;
 
   @override
   Future<AuthSession> login({
@@ -31,15 +43,54 @@ class AuthRepositoryImpl implements AuthRepository {
     required bool openShift,
     required num openingCash,
   }) async {
-    final session = await _remote.login(
-      terminalCode: terminalCode,
-      staffCode: staffCode,
-      pin: pin,
-      openShift: openShift,
-      openingCash: openingCash,
-    );
-    await _persist(session);
-    return session;
+    try {
+      final session = await _remote.login(
+        terminalCode: terminalCode,
+        staffCode: staffCode,
+        pin: pin,
+        openShift: openShift,
+        openingCash: openingCash,
+        // Sozlamalardagi biznes kodi (bo'sh bo'lsa yuborilmaydi).
+        tenantSlug: _prefs.getString('tenant_slug') ?? '',
+      );
+      await _persist(session);
+      await _prefs.setBool(_kOfflineLogin, false);
+      // Keyingi safar internet bo'lmasa shu parol bilan kira olsin.
+      // KUTMAYMIZ: xesh alohida isolate'da hisoblanadi, kassir esa shu
+      // zahoti ichkariga kiradi (kirish tezligi pasaymaydi).
+      unawaited(_offline.remember(
+        terminalCode: terminalCode,
+        staffCode: staffCode,
+        pin: pin,
+        session: AuthSessionModel.toPersistedJson(session),
+        token: session.accessToken,
+      ));
+      return session;
+    } on NetworkFailure {
+      // SERVER YO'Q — shu terminalda avval kirgan xodim bo'lsa, paroli
+      // mahalliy xeshga mos kelsa, saqlangan sessiya tiklanadi. Xato parol
+      // bo'lsa (AuthFailure) bu yerga umuman tushmaymiz: parol xatosini
+      // server aytadi, oflayn esa xesh mos kelmaydi.
+      final cached = await _offline.find(
+        terminalCode: terminalCode,
+        staffCode: staffCode,
+        pin: pin,
+      );
+      if (cached == null) {
+        // Terminalda oflayn yozuvlar bor, lekin parol mos kelmadi — sabab
+        // «internet yo'q» emas, aynan parol. Aniq aytamiz.
+        if (_offline.hasAny) {
+          throw const AuthFailure(
+              'Internet yo\'q. Parol noto\'g\'ri yoki bu kassada avval '
+              'kirmagansiz — internet qaytgach qayta urinib ko\'ring.');
+        }
+        rethrow;
+      }
+      await _config.setToken(cached.token);
+      await _prefs.setString(_kSession, jsonEncode(cached.session));
+      await _prefs.setBool(_kOfflineLogin, true);
+      return AuthSessionModel.fromPersistedJson(cached.session, cached.token);
+    }
   }
 
   @override
@@ -87,6 +138,9 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<void> logout() async {
     await _config.setToken(null);
     await _prefs.remove(_kSession);
+    await _prefs.remove(_kOfflineLogin);
+    // MUHIM: oflayn kirish yozuvlari SAQLANIB qoladi — aynan chiqib
+    // ketgandan keyin internetsiz qayta kirish uchun kerak.
   }
 
   Future<void> _persist(AuthSession session) async {

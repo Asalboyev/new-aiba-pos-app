@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../../../core/errors/failure.dart';
 import '../../domain/entities/category.dart';
 import '../../domain/entities/product.dart';
@@ -20,6 +24,10 @@ class MenuRepositoryImpl implements MenuRepository {
   /// har 60 soniyada qayta qurilmaydi, rasmlar qayta yuklanmaydi).
   String? _lastSignature;
 
+  /// Serverdagi menyu imzosi (`menu_version`). Ilova qayta ochilganda ham
+  /// eslab qolinsin uchun prefs'da saqlanadi.
+  static const _kMenuVersion = 'menu_version';
+
   @override
   Future<List<Category>> cachedCategories() => _local.categories();
 
@@ -29,7 +37,21 @@ class MenuRepositoryImpl implements MenuRepository {
   @override
   Future<bool> refreshFromServer() async {
     try {
-      final pull = await _remote.pull();
+      final prefs = await SharedPreferences.getInstance();
+      // Serverga «menda shu versiya bor» deymiz — menyu o'zgarmagan bo'lsa
+      // 600 ta mahsulot qayta yuborilmaydi (≈290 KB o'rniga ≈20 KB).
+      final pull = await _remote.pull(menuVersion: prefs.getString(_kMenuVersion));
+      // Ommaboplik xaritasi menyu imzosidan MUSTAQIL saqlanadi — menyu
+      // o'zgarmasa ham savdo tartibi yangilanib turadi.
+      await prefs.setString('menu_popularity', jsonEncode(pull.popularity));
+      // Stop-list menyudan MUSTAQIL: menyu o'zgarmasa ham taom tugashi
+      // mumkin — kassa uni keshdagi mahsulot ustiga qo'yadi.
+      await prefs.setString('menu_kitchen', jsonEncode(pull.kitchen));
+      if (pull.menuVersion != null && pull.menuVersion!.isNotEmpty) {
+        await prefs.setString(_kMenuVersion, pull.menuVersion!);
+      }
+      // Server menyuni umuman yubormadi — lokal kesh o'z holicha to'g'ri.
+      if (pull.menuUnchanged) return false;
       final sig = _signature(pull.categories, pull.products);
       if (sig == _lastSignature) {
         // Server bilan bir xil — cache va UI o'zgarishsiz qoladi.

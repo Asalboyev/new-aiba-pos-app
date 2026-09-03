@@ -43,6 +43,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final AppConfig _config;
   late final TextEditingController _baseUrl;
   late final TextEditingController _terminalCode;
+  late final TextEditingController _tenantSlug;
   late final TextEditingController _printerHost;
   late final TextEditingController _printerPort;
   late final TextEditingController _printerName;
@@ -58,6 +59,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _config = ref.read(appConfigProvider);
     _baseUrl = TextEditingController(text: _config.baseUrl);
     _terminalCode = TextEditingController(text: _config.terminalCode);
+    _tenantSlug = TextEditingController(text: _config.tenantSlug);
     _printerHost = TextEditingController(text: _config.printerHost ?? '');
     _printerPort = TextEditingController(text: _config.printerPort.toString());
     _printerName = TextEditingController(text: _config.printerName);
@@ -83,6 +85,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void dispose() {
     _baseUrl.dispose();
     _terminalCode.dispose();
+    _tenantSlug.dispose();
     _printerHost.dispose();
     _printerPort.dispose();
     _printerName.dispose();
@@ -93,6 +96,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _persist() async {
     await _config.setBaseUrl(_baseUrl.text);
     await _config.setTerminalCode(_terminalCode.text);
+    await _config.setTenantSlug(_tenantSlug.text);
     await _config.setPrinterHost(_printerHost.text);
     await _config.setPrinterPort(
       int.tryParse(_printerPort.text.trim()) ?? AppConfig.defaultPrinterPort,
@@ -300,6 +304,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               label: 'Terminal kodi',
               controller: _terminalCode,
               hint: 'T1',
+            ),
+          ),
+          const SizedBox(width: 16),
+          // BIZNES KODI — ixtiyoriy. «T1» boshqa biznesda ham bo'lsa server
+          // kirishni rad etadi va shu maydonni so'raydi; to'ldirilsa kassa
+          // faqat o'z biznesi bazasiga ulanadi.
+          Expanded(
+            child: _Field(
+              label: 'Biznes kodi (ixtiyoriy)',
+              controller: _tenantSlug,
+              hint: 'diet-bistro',
             ),
           ),
         ],

@@ -1,10 +1,14 @@
+import '../../../../core/util/app_clock.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/widgets/pos_chrome.dart';
+import '../../data/delivery_api.dart';
 
 /// Figma "Pos Design" dan eksport qilingan delivery ikonlari.
 Widget dlvIcon(String name, {double size = 20, Color color = Colors.white}) {
@@ -19,18 +23,23 @@ Widget dlvIcon(String name, {double size = 20, Color color = Colors.white}) {
 /// Yetkazib berish — Figma "Delivery" dizayni pixel-mos:
 ///  • Kanban: Yangi / Jarayonda / Tayyor / Yetkazilgan / Bekor qilingan
 ///  • Kartani bosganda — "All Orders" detal (chap ro'yxat 284px + 903px kontent)
-/// Ma'lumot Yandex eats / Uzum Tezkor'dan keladi — integratsiya ulanmaguncha
-/// namunaviy buyurtmalar bilan ishlaydi (holatlar lokal o'zgaradi).
-class DeliveryScreen extends StatefulWidget {
+///
+/// Ma'lumot POS'dan keladi (`pos.delivery_orders`): AIBA TEZKOR
+/// (AI_chatbot), keyin Yandex va Uzum Tezkor. Ekran hech narsa o'ylab
+/// chiqarmaydi — ro'yxatni ko'rsatadi va harakatni serverga yuboradi
+/// (`delivery_api.dart`). «Qabul qilish» = TASDIQLASH: POS chek yozadi,
+/// ombor tex-karta bo'yicha kamayadi, oshxona porsiyasi minus bo'ladi,
+/// TV yangilanadi va savdo joriy smenaga tushadi.
+class DeliveryScreen extends ConsumerStatefulWidget {
   const DeliveryScreen({super.key});
 
   @override
-  State<DeliveryScreen> createState() => _DeliveryScreenState();
+  ConsumerState<DeliveryScreen> createState() => _DeliveryScreenState();
 }
 
 // ─────────── Model ───────────
 
-enum DStage { yangi, jarayonda, tayyor, yetkazilgan, bekor }
+// DStage — `delivery_api.dart`da (server bilan bir xil so'zlar).
 
 class DItem {
   DItem({
@@ -49,6 +58,11 @@ class DItem {
 
 class DOrder {
   DOrder({
+    required this.totalSum,
+    required this.id,
+    required this.channelKey,
+    required this.hasUnlinked,
+    required this.confirmed,
     required this.number,
     required this.provider,
     required this.stage,
@@ -62,6 +76,13 @@ class DOrder {
     this.minutes,
     this.courier,
   });
+  /// POS'dagi buyurtma ID'si — harakatlar shu bo'yicha yuboriladi.
+  final String id;
+  final String channelKey;
+  /// Chekka tushmaydigan pozitsiya bormi (POS katalogida topilmagan).
+  final bool hasUnlinked;
+  /// Cheki yozilganmi (tasdiqlangan).
+  final bool confirmed;
   final String number;
   final String provider;
   DStage stage;
@@ -75,7 +96,11 @@ class DOrder {
   int? minutes;
   String? courier;
 
-  int get total => items.fold(0, (s, i) => s + i.price);
+  /// JAMI — serverdan keladi (pozitsiyalar + dastavka puli). Avval
+  /// pozitsiyalar yig'indisi hisoblanardi va kassir dastavka pulisiz
+  /// summani ko'rib mijozdan kam pul olardi.
+  final int totalSum;
+  int get total => totalSum;
 
   String? get statusLine => switch (stage) {
         DStage.tayyor =>
@@ -128,54 +153,64 @@ _StageStyle _style(DStage s) => switch (s) {
 
 // ─────────── Namuna buyurtmalar (aggregator ulanmaguncha) ───────────
 
-List<DOrder> _sampleOrders() {
-  List<DItem> items() => [
-        DItem(qty: 2, name: 'Lag\'mon', note: '+ qo\'shimcha go\'sht, achchiqsiz', price: 84000, group: 'Issiq Taomlar'),
-        DItem(qty: 3, name: 'Lag\'mon', note: '+ qo\'shimcha go\'sht, achchiqsiz', price: 36000, group: 'Issiq Taomlar'),
-        DItem(qty: 1, name: 'Coca Cola 0,5 L', note: 'Shakarsiz', price: 12000, group: 'Ichimliklar'),
-      ];
-  DOrder o(String num, String prov, DStage st, {int? m, String? courier}) => DOrder(
-        number: num,
-        provider: prov,
-        stage: st,
-        createdText: 'yaratilgan 10:02 · 2 daqiqa oldin',
-        readyBy: '10:40 - 22 daqiqa qoldi',
-        customer: 'Dilnoza',
-        phone: '+998 90 *** ** 99',
-        packages: 2,
-        comment: 'Lag\'monni achchiq bo\'lmasin, ichida kartoshka ham bo\'lmasin, iltimos!',
-        items: items(),
-        minutes: m,
-        courier: courier,
-      );
-  return [
-    o('45914', 'Yandex eats', DStage.yangi, m: 22),
-    o('45915', 'Uzum Tezkor', DStage.yangi, m: 12),
-    o('45916', 'Yandex eats', DStage.yangi, m: 5),
-    o('45917', 'Yandex eats', DStage.yangi, m: 28),
-    o('45918', 'Uzum Tezkor', DStage.yangi, m: 22),
-    o('45920', 'Yandex eats', DStage.jarayonda),
-    o('45921', 'Yandex eats', DStage.jarayonda),
-    o('45922', 'Uzum Tezkor', DStage.jarayonda),
-    o('45923', 'Yandex eats', DStage.jarayonda),
-    o('776633', 'Uzum Tezkor', DStage.tayyor),
-    o('45925', 'Yandex eats', DStage.tayyor, courier: 'Ahmadjon Boburov'),
-    for (var i = 0; i < 7; i++)
-      o('4590$i', 'Yandex eats', DStage.yetkazilgan, courier: 'Ahmadjon Boburov'),
-    o('45930', 'Uzum Tezkor', DStage.bekor),
-    o('45931', 'Yandex eats', DStage.bekor),
-    o('45932', 'Yandex eats', DStage.bekor),
-    o('45933', 'Yandex eats', DStage.bekor),
-  ];
+/// POS'dagi buyurtma → ekran modeli. Ekran Figma dizayni bilan yozilgan,
+/// shuning uchun modelni almashtirmaymiz — moslashtiramiz.
+DOrder _toDOrder(DlvOrder d) {
+  final created = d.createdAt;
+  String createdText = '';
+  if (created != null) {
+    final mins = AppClock.now().difference(created).inMinutes;
+    createdText = 'yaratilgan ${_hhmm(created)}'
+        ' · ${mins <= 0 ? "hozir" : "$mins daqiqa oldin"}';
+  }
+  return DOrder(
+    totalSum: d.total,
+    id: d.id,
+    channelKey: d.channel,
+    hasUnlinked: d.hasUnlinked,
+    confirmed: d.confirmed,
+    number: d.number.isEmpty ? d.id.substring(0, 6) : d.number,
+    provider: d.channelName,
+    stage: d.stage,
+    createdText: createdText,
+    readyBy: d.etaMinutes != null ? '${d.etaMinutes} daqiqada tayyor' : '',
+    customer: d.customer ?? '',
+    phone: d.phone ?? '',
+    packages: d.items.length,
+    comment: [
+      if ((d.address ?? '').isNotEmpty) d.address!,
+      if ((d.note ?? '').isNotEmpty) d.note!,
+      if (d.deliveryFee > 0) 'Dastavka: ${d.deliveryFee} so\'m',
+      if ((d.cancelReason ?? '').isNotEmpty) 'Bekor: ${d.cancelReason}',
+    ].join(' · '),
+    items: [
+      for (final i in d.items)
+        DItem(
+          qty: i.qty.round(),
+          name: i.linked ? i.name : '${i.name}  ⚠ katalogda yo\'q',
+          note: i.note ?? '',
+          price: i.total,
+          group: d.channelName,
+        ),
+    ],
+    minutes: d.etaMinutes,
+    courier: d.courierName,
+  );
 }
+
+String _hhmm(DateTime t) =>
+    '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
 // ─────────── Ekran ───────────
 
-class _DeliveryScreenState extends State<DeliveryScreen> {
-  final List<DOrder> _orders = _sampleOrders();
+class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
+  /// Buyurtmalar POS'dan keladi (AIBA TEZKOR / Yandex / Uzum). Ilova
+  /// hech narsa o'ylab chiqarmaydi — faqat ko'rsatadi va harakat yuboradi.
+  List<DOrder> _orders = const [];
   DOrder? _selected;
   Timer? _tick;
   int _accept = 15;
+  bool _busy = false;
 
   @override
   void dispose() {
@@ -202,27 +237,68 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     setState(() => _selected = null);
   }
 
-  void _advance(DOrder o) {
-    setState(() {
-      switch (o.stage) {
-        case DStage.yangi:
-          o.stage = DStage.jarayonda;
-        case DStage.jarayonda:
-          o.stage = DStage.tayyor;
-        default:
-          break;
-      }
-    });
-    _open(o);
+  /// «Qabul qilish» / «Tayyor» — POS'ga yuboriladi.
+  ///
+  /// YANGI buyurtmada bu TASDIQLASH: POS chek yozadi va to'langan qiladi,
+  /// shundan keyin ombor tex-karta bo'yicha kamayadi, oshxona porsiyasi
+  /// minus bo'ladi, TV yangilanadi va savdo joriy smenaga tushadi.
+  Future<void> _advance(DOrder o) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final n = ref.read(deliveryProvider.notifier);
+    final wasNew = o.stage == DStage.yangi;
+    final err = switch (o.stage) {
+      DStage.yangi => await n.confirm(o.id),
+      DStage.jarayonda => await n.setStatus(o.id, 'ready'),
+      DStage.tayyor => await n.setStatus(
+          o.id, o.courier == null ? 'picked_up' : 'delivered'),
+      _ => null,
+    };
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (err != null) {
+      // Tasdiqlashdan qaytgan matn XATO emas, OGOHLANTIRISH bo'lishi
+      // mumkin: chek yozilgan, lekin taom tugagan yoki narx farq qilgan.
+      // Xato qizil, ogohlantirish sariq — kassir ikkisini ajratishi kerak.
+      final warn = wasNew &&
+          (err.contains('TUGAGAN') ||
+              err.contains('Chekka tushmadi') ||
+              err.contains('Narx farqi'));
+      _toast(err, warning: warn);
+    }
   }
 
-  void _cancel(DOrder o) {
-    setState(() => o.stage = DStage.bekor);
-    _open(o);
+  Future<void> _cancel(DOrder o) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final err = await ref.read(deliveryProvider.notifier)
+        .cancel(o.id, 'Kassada bekor qilindi');
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (err != null) _toast(err);
+  }
+
+  void _toast(String msg, {bool warning = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: warning ? const Color(0xFFB26A00) : _red,
+        duration: Duration(seconds: warning ? 7 : 4),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    // POS'dagi ro'yxatni TINGLAYMIZ: yangi buyurtma kelsa yoki holat
+    // o'zgarsa ekran o'zi yangilanadi (8 soniyada bir so'raladi).
+    final st = ref.watch(deliveryProvider);
+    _orders = [for (final d in st.orders) _toDOrder(d)];
+    // Ochiq kartochka ham yangilanib turishi kerak (holat/kurer o'zgarsa).
+    if (_selected != null) {
+      _selected = _orders.firstWhere((o) => o.id == _selected!.id,
+          orElse: () => _selected!);
+    }
     return Focus(
       autofocus: true,
       onKeyEvent: (n, e) {
@@ -272,8 +348,8 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
                   stage: stage,
                   orders: _byStage(stage),
                   onOpen: _open,
-                  onAccept: (o) => setState(() => o.stage = DStage.jarayonda),
-                  onReady: (o) => setState(() => o.stage = DStage.tayyor),
+                  onAccept: (o) => _advance(o),
+                  onReady: (o) => _advance(o),
                 );
             if (c.maxWidth >= n * minW + gap * (n - 1)) {
               return Row(
@@ -351,11 +427,11 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
                           compact: true,
                           onOpen: () => _open(same[i]),
                           onAccept: () {
-                            setState(() => same[i].stage = DStage.jarayonda);
+                            _advance(same[i]);
                             _open(same[i]);
                           },
                           onReady: () {
-                            setState(() => same[i].stage = DStage.tayyor);
+                            _advance(same[i]);
                             _open(same[i]);
                           },
                         ),
@@ -814,10 +890,16 @@ class _ColumnHeader extends StatelessWidget {
     return Row(children: [
       dlvIcon('chevron-up', size: 24, color: Colors.white),
       const SizedBox(width: 4),
-      Text(st.title,
-          style: const TextStyle(
-              color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
-      const Spacer(),
+      // Uzun sarlavha («Bekor qilingan») tor ustunda sig'masdan qator
+      // oshib ketardi — qisqartiriladi, son esa doim ko'rinadi.
+      Flexible(
+        child: Text(st.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+                color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+      ),
+      const SizedBox(width: 6),
       Container(
         constraints: const BoxConstraints(minWidth: 27, minHeight: 27),
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),

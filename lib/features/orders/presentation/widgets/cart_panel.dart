@@ -120,7 +120,7 @@ class CartPanel extends ConsumerWidget {
             iconAsset: 'assets/icons/pay_card.svg',
             filled: true,
             keyLabel: 'F4',
-            onTap: cart.isEmpty ? null : () => onCheckout(PaymentMethod.card),
+            onTap: cart.isEmpty ? null : () => onCheckout(PaymentMethod.uzcard),
           ),
           const SizedBox(height: 10),
           _PayButton(
@@ -241,19 +241,19 @@ class _CartLine extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 10),
       child: GestureDetector(
         child: Container(
-          padding: const EdgeInsets.all(10),
+          // Figma savatcha qatori: oq-8% fon, radius 8, RAMKASIZ.
+          padding: const EdgeInsets.fromLTRB(8, 6, 16, 6),
           decoration: BoxDecoration(
-            color: PosColors.card,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: PosColors.cardBorder),
+            color: const Color(0x14FFFFFF),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(6),
                 child: SizedBox(
-                  width: 52,
-                  height: 52,
+                  width: 45,
+                  height: 45,
                   child: _Thumb(url: imageUrl),
                 ),
               ),
@@ -266,13 +266,13 @@ class _CartLine extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 3),
+                            color: Colors.white, fontSize: 12)),
+                    const SizedBox(height: 6),
                     Text(Money.formatSom(item.lineTotal),
                         style: const TextStyle(
-                            color: PosColors.muted, fontSize: 14)),
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
@@ -283,8 +283,8 @@ class _CartLine extends StatelessWidget {
                     : _fmtQty(item.qty),
                 style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700),
               ),
             ],
           ),

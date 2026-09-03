@@ -54,10 +54,11 @@ class ProductGrid extends ConsumerWidget {
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              color: PosColors.panel,
+              // Figma: grid paneli #1B1B1C (kartalar undan ochroq oq-8%).
+              color: PosColors.card,
               borderRadius: BorderRadius.circular(20),
             ),
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             child: products.isEmpty
                 ? (searching ? const _NoResults() : const _EmptyProducts())
                 : LayoutBuilder(builder: (context, gc) {
@@ -333,9 +334,9 @@ class _SearchBarState extends ConsumerState<_SearchBar> {
               decoration: const InputDecoration(
                 isCollapsed: true,
                 border: InputBorder.none,
-                hintText:
-                    'F1 kod/nom · kod*3 miqdor · Enter savatga · F2 skaner · '
-                    'F3 QR · F4 karta · F5 naqd · F7 yangi zakaz · F8/⇧F8 zakaz almashtirish · F9 xato chek/bekor',
+                // Figma: «Mahsulot qidirish...» — tezkor tugmalar ro'yxati
+                // maydonni to'ldirib yubormasin (yordam F1 chip tooltip'ida).
+                hintText: 'Mahsulot qidirish...',
                 hintStyle: TextStyle(color: Color(0xFF5C626A)),
               ),
             ),
@@ -401,7 +402,7 @@ class _CategoryChips extends StatelessWidget {
         ),
         for (final c in categories)
           _Chip(
-            icon: 'assets/icons/cat_food.svg',
+            icon: _categoryIcon(c.name),
             // Kategoriya rasmi (admin panelda) — bo'lsa ikon o'rniga ko'rsatiladi.
             imageUrl: _absoluteUrl(baseUrl, c.imageUrl),
             label: c.name,
@@ -412,6 +413,20 @@ class _CategoryChips extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Kategoriya nomiga qarab Figma ikoni: ichimliklar — stakan, pizza —
+/// bo'lak, qolgan taomlar — sho'rva kosasi (dizayndagi uch ikon).
+String _categoryIcon(String name) {
+  final n = name.toLowerCase();
+  const drinks = [
+    'ichimlik', 'напит', 'drink', 'сок', 'кофе', 'чай', 'kofe', 'choy',
+    'suv', 'вода', 'cola', 'кола', 'fresh',
+  ];
+  const pizza = ['pizza', 'пицца', 'pitsa'];
+  if (drinks.any(n.contains)) return 'assets/icons/cat_drink.svg';
+  if (pizza.any(n.contains)) return 'assets/icons/cat_pizza.svg';
+  return 'assets/icons/cat_soup.svg';
 }
 
 class _Chip extends StatelessWidget {
@@ -605,15 +620,16 @@ class _ProductCardState extends State<_ProductCard> {
             final narrow = cc.maxWidth < 165;
             return Container(
             decoration: BoxDecoration(
+              // Figma: karta oq-8% fonda, RAMKASIZ; tanlanганда ko'k belgi.
               color: widget.selected
-                  ? PosColors.blue.withValues(alpha: 0.12)
-                  : PosColors.card,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                  color: widget.selected ? PosColors.blue : PosColors.cardBorder,
-                  width: widget.selected ? 2 : 1),
+                  ? PosColors.blue.withValues(alpha: 0.16)
+                  : const Color(0x14FFFFFF),
+              borderRadius: BorderRadius.circular(12),
+              border: widget.selected
+                  ? Border.all(color: PosColors.blue, width: 2)
+                  : null,
             ),
-            padding: EdgeInsets.all(narrow ? 8 : 10),
+            clipBehavior: Clip.antiAlias,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -622,7 +638,7 @@ class _ProductCardState extends State<_ProductCard> {
                     children: [
                       Positioned.fill(
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(11),
                           child: _ProductImage(url: widget.imageUrl),
                         ),
                       ),
@@ -660,48 +676,52 @@ class _ProductCardState extends State<_ProductCard> {
                     ],
                   ),
                 ),
-                SizedBox(height: narrow ? 6 : 10),
-                if (narrow)
-                  Text(widget.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          color: Color(0xFFFAFAFA),
-                          fontSize: 12.5,
-                          height: 1.15,
-                          fontWeight: FontWeight.w500))
-                else
-                  Row(
+                // Figma matn bloki: padding 8, gap 4 — nom 12px regular
+                // (#FAFAFA) + «#kod» 12px oq-42%, pastda narx 13px BOLD.
+                Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(widget.name,
-                            maxLines: 1,
+                      if (narrow)
+                        Text(widget.name,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                                 color: Color(0xFFFAFAFA),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500)),
-                      ),
-                      // Figma: "#124" — oq 42%. Kod bo'sh bo'lsa ko'rsatilmaydi.
-                      if (widget.code.isNotEmpty)
-                        Text('#$shortCode',
+                                fontSize: 12,
+                                height: 1.2))
+                      else
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(widget.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      color: Color(0xFFFAFAFA), fontSize: 12)),
+                            ),
+                            if (widget.code.isNotEmpty)
+                              Text('#$shortCode',
+                                  style: const TextStyle(
+                                      color: Color(0x6BFFFFFF), fontSize: 12)),
+                          ],
+                        ),
+                      const SizedBox(height: 4),
+                      // Narx BITTA qatorda — sig'masa avtomatik kichrayadi.
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(Money.formatSom(widget.price),
+                            maxLines: 1,
                             style: const TextStyle(
-                                color: Color(0x6BFFFFFF), fontSize: 12)),
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700)),
+                      ),
                     ],
                   ),
-                const SizedBox(height: 4),
-                // Narx BITTA qatorda — sig'masa avtomatik kichrayadi
-                // (avval "8 000" / "so'm" ikki qatorga bo'linib ketardi).
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(Money.formatSom(widget.price),
-                      maxLines: 1,
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: narrow ? 14 : 15,
-                          fontWeight: FontWeight.w700)),
                 ),
               ],
             ),

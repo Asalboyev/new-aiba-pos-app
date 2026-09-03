@@ -29,6 +29,19 @@ class Shift extends Equatable {
   /// Smena rasxodlari (manager Telegram botdan yozadi) — kassadan minus.
   final num expensesTotal;
 
+  /// Karta savdosining TURLARI. Bitta «Karta» ustuni bilan menejer
+  /// UzCard va Humo aylanmasini ajratib ko'rmaydi — bank bilan
+  /// solishtirishda esa aynan shu kesim kerak.
+  final num uzcardTotal;
+  final num humoTotal;
+
+  /// ONLINE buyurtmalar — kanal bo'yicha: `{'aiba_tezkor': (5, 305200), …}`.
+  /// Zal savdosidan AJRATIB ko'rsatiladi: kassir shu smenada qaysi
+  /// tizimdan qancha tushganini bilishi kerak.
+  final Map<String, ({int count, num total})> onlineByChannel;
+  final int onlineCount;
+  final num onlineTotal;
+
   const Shift({
     required this.id,
     required this.status,
@@ -50,6 +63,11 @@ class Shift extends Equatable {
     this.uzumTotal = 0,
     this.keldiTotal = 0,
     this.expensesTotal = 0,
+    this.uzcardTotal = 0,
+    this.humoTotal = 0,
+    this.onlineByChannel = const {},
+    this.onlineCount = 0,
+    this.onlineTotal = 0,
   });
 
   bool get isOpen => status == 'open';
@@ -74,5 +92,9 @@ class Shift extends Equatable {
         uzumTotal,
         keldiTotal,
         expensesTotal,
+        uzcardTotal,
+        humoTotal,
+        onlineCount,
+        onlineTotal,
       ];
 }

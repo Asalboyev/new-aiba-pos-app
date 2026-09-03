@@ -38,6 +38,9 @@ dependencies:
   # Idempotency keys
   uuid: ^4.5.1
 
+  # Oflayn kirish uchun parol xeshi (SHA-256) — parolning o'zi saqlanmaydi.
+  crypto: ^3.0.3
+
   # ESC/POS receipt + QR + network printer.
   # esc_pos_utils_plus is pinned to the 2.0.1+x line so its `image ^3`
   # constraint is compatible with esc_pos_printer 4.1.0 (which pulls image ^3

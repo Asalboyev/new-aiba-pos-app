@@ -30,7 +30,11 @@ Future<void> loadBundledRoots() async {
 class DioClient {
   DioClient(this._config, {this.onUnauthorized}) : _dio = Dio() {
     _dio.options
-      ..connectTimeout = const Duration(seconds: 10)
+      // Ulanish kutish vaqti QISQA: server yo'q bo'lsa kassa 10 soniya
+      // qotib turmasin — 5 soniyada «oflayn» yo'liga o'tadi (chek navbatga
+      // tushadi, oflayn kirish ishlaydi). Javob kutish esa uzun qoladi:
+      // katta sinxron sekin internetda ham tugasin.
+      ..connectTimeout = const Duration(seconds: 5)
       ..receiveTimeout = const Duration(seconds: 20)
       ..headers['Content-Type'] = 'application/json';
 

@@ -1,3 +1,4 @@
+import '../../../../core/util/app_clock.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -225,7 +226,7 @@ class _ShiftScreenState extends ConsumerState<ShiftScreen> {
   Future<void> _printDayReport() async {
     try {
       final ses = ref.read(sessionProvider);
-      final now = DateTime.now();
+      final now = AppClock.now();
       String two(int x) => x.toString().padLeft(2, '0');
       final res = await ref
           .read(dioClientProvider)
@@ -346,7 +347,7 @@ class _ShiftScreenState extends ConsumerState<ShiftScreen> {
             '${startedAt.minute.toString().padLeft(2, '0')}';
     String? durationStr;
     if (isOpen && startedAt != null) {
-      final d = DateTime.now().difference(startedAt);
+      final d = AppClock.now().difference(startedAt);
       final h = d.inHours;
       final m = d.inMinutes % 60;
       durationStr = h > 0 ? '$h soat $m daqiqa' : '$m daqiqa';
@@ -464,17 +465,28 @@ class _ShiftScreenState extends ConsumerState<ShiftScreen> {
           valueColor: PosColors.green),
     ];
 
-    // To'lov turlari kesimi: Naqd / Karta / Click / Uzum — har biri alohida
-    // (admin paneldagi hisobot bilan bir xil).
+    // To'lov turlari kesimi. KARTA umumiy qatori YO'Q — karta ikki xil
+    // bo'ladi va kassir aynan turini ko'rishi kerak: UzCard va Humo.
+    // Umumiy «Karta savdo» ularning ustiga qo'shilib ko'ringani uchun
+    // olib tashlandi (bir pul ikki marta sanalardi).
+    final uzcard = shift?.uzcardTotal ?? 0;
+    final humo = shift?.humoTotal ?? 0;
+    // Turi KO'RSATILMAGAN karta qoldig'i: jami kartadan UzCard va Humo
+    // ayirilgani. Odatda nol — kassir har chekda turni tanlaydi. Nol
+    // bo'lmasa ko'rsatiladi, aks holda o'sha pul hisobotdan yo'qolardi.
+    final otherCard = (shift?.cardOnly ?? 0) - uzcard - humo;
     final payTiles = <Widget>[
       _MiniTile(label: 'Naqd savdo', value: Money.formatSom(totalCash)),
-      _MiniTile(
-          label: 'Karta savdo', value: Money.formatSom(shift?.cardOnly ?? 0)),
+      _MiniTile(label: 'UzCard', value: Money.formatSom(uzcard)),
+      _MiniTile(label: 'Humo', value: Money.formatSom(humo)),
       _MiniTile(
           label: 'Click savdo',
           value: Money.formatSom(shift?.clickTotal ?? 0)),
       _MiniTile(
           label: 'Uzum savdo', value: Money.formatSom(shift?.uzumTotal ?? 0)),
+      if (otherCard > 0)
+        _MiniTile(
+            label: 'Boshqa karta', value: Money.formatSom(otherCard)),
     ];
 
     final centerTiles = <Widget>[
@@ -530,6 +542,30 @@ class _ShiftScreenState extends ConsumerState<ShiftScreen> {
                 label: 'Naqd · QRsiz (${shift?.cashNoQrCount ?? 0} ta)',
                 value: Money.formatSom(shift?.cashNoQrTotal ?? 0),
                 valueColor: const Color(0xFFF5A623)),
+          ], compact),
+        ],
+        // ONLINE BUYURTMALAR — kanal bo'yicha, zal savdosidan ajratilgan.
+        // Buyurtma AIBA TEZKOR / Yandex / Uzum Tezkor'dan kelsa cheki shu
+        // smenaga tushadi, lekin menejer «qanchasi online?» degan savolga
+        // javob olishi kerak. Online buyurtma bo'lmasa qator ko'rinmaydi.
+        if ((shift?.onlineCount ?? 0) > 0) ...[
+          const SizedBox(height: 14),
+          Row(children: [
+            const Icon(Icons.delivery_dining, size: 16, color: Color(0xFF8A8F98)),
+            const SizedBox(width: 6),
+            Text('Online buyurtmalar · ${shift!.onlineCount} ta · '
+                '${Money.formatSom(shift.onlineTotal)}',
+                style: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w600,
+                    color: Color(0xFF8A8F98))),
+          ]),
+          const SizedBox(height: 8),
+          tileRows(<Widget>[
+            for (final e in shift.onlineByChannel.entries)
+              _MiniTile(
+                  label: '${_channelName(e.key)} (${e.value.count} ta)',
+                  value: Money.formatSom(e.value.total),
+                  valueColor: const Color(0xFF4C9AFF)),
           ], compact),
         ],
         const SizedBox(height: 14),
@@ -874,6 +910,14 @@ class _StatCard extends StatelessWidget {
     );
   }
 }
+
+/// Kanal kodini kassir tushunadigan nomga o'giradi.
+String _channelName(String code) => switch (code) {
+      'yandex' => 'Yandex',
+      'uzum' => 'Uzum Tezkor',
+      'aiba_tezkor' => 'AIBA TEZKOR',
+      _ => code,
+    };
 
 class _MiniTile extends StatelessWidget {
   const _MiniTile({required this.label, required this.value, this.valueColor});

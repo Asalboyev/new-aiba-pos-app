@@ -7,6 +7,14 @@ sealed class Failure extends Equatable {
 
   @override
   List<Object?> get props => [message];
+
+  /// Ekranga TUSHUNARLI matn chiqishi uchun.
+  ///
+  /// Bo'lmasa `'Xato: $e'` kabi joylarda sinf NOMI chiqardi
+  /// («Xato: NetworkFailure») — kassir uchun ma'nosiz, holbuki
+  /// tayyor o'zbekcha matn shu yerda turadi.
+  @override
+  String toString() => message;
 }
 
 class NetworkFailure extends Failure {

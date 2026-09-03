@@ -7,8 +7,15 @@ class SyncRemoteDataSource {
   SyncRemoteDataSource(this._client);
   final DioClient _client;
 
-  Future<SyncPullResult> pull() async {
-    final res = await _client.get<Map<String, dynamic>>('/api/v2/pos-terminal/sync/pull');
+  /// [menuVersion] — oxirgi sinxronda kelgan menyu imzosi. Server bilan bir
+  /// xil bo'lsa menyu qayta yuborilmaydi (faqat stop-list + ommaboplik).
+  Future<SyncPullResult> pull({String? menuVersion}) async {
+    final res = await _client.get<Map<String, dynamic>>(
+      '/api/v2/pos-terminal/sync/pull',
+      query: menuVersion == null || menuVersion.isEmpty
+          ? null
+          : {'menu_version': menuVersion},
+    );
     return SyncPullResult.fromJson(res.data ?? const {});
   }
 

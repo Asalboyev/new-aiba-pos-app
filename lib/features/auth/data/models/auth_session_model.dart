@@ -60,6 +60,10 @@ class AuthSessionModel {
           'cash_fiscal_on_demand': s.restaurant.cashFiscalOnDemand,
           'receipt_show_mxik': s.restaurant.receiptShowMxik,
           'receipt_paper_width': s.restaurant.receiptPaperWidth,
+          // MUHIM: fiskal rejim ham saqlanadi. Avval saqlanmagani uchun
+          // ilova qayta ochilganda `epos_terminal` (kassadagi Communicator
+          // orqali OFLAYN fiskal) yo'qolib, chek fiskalsiz chiqardi.
+          'fiscal_provider': s.restaurant.fiscalProvider,
         },
         'terminal': {
           'id': s.terminal.id,

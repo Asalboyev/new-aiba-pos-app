@@ -19,7 +19,11 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-const int _pinLength = 4;
+// Parol uzunligi 3–6 raqam (adminka xodim kartochkasidagi bilan bir xil).
+// AVTO-KIRISH yo'q: uzunlik oldindan noma'lum, shuning uchun kassir ✓
+// tugmasini (yoki fizik klaviaturada Enter) bosadi.
+const int _pinMin = 3;
+const int _pinMax = 6;
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   String _pin = '';
@@ -46,6 +50,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _backspace();
       return true;
     }
+    if (e.logicalKey == LogicalKeyboardKey.enter ||
+        e.logicalKey == LogicalKeyboardKey.numpadEnter) {
+      if (_pin.length >= _pinMin) _submit();
+      return true;
+    }
     return false;
   }
 
@@ -58,7 +67,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   void _digit(String d) {
     if (ref.read(loginControllerProvider).loading) return;
-    if (_pin.length >= _pinLength) return;
+    if (_pin.length >= _pinMax) return;
     // Yangi raqam terila boshlaganда eski xato yo'qoladi.
     if (ref.read(loginControllerProvider).error != null) {
       ref.read(loginControllerProvider.notifier).clearError();
@@ -75,7 +84,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _openSettings();
       return;
     }
-    if (_pin.length == _pinLength) _submit();
+
   }
 
   void _backspace() {
@@ -110,6 +119,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (ok) {
       // Sozlash tugadi — endi "000" kodi ishlamaydi.
       await ref.read(appConfigProvider).markSetupDone();
+      // OFLAYN kirish — xodim buni bilib tursin (chek fiskal navbatga
+      // tushadi, internet qaytganda o'zi yuboriladi).
+      if (ref.read(authRepositoryProvider).lastLoginWasOffline && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          duration: Duration(seconds: 5),
+          backgroundColor: Color(0xFF8A5A00),
+          content: Text(
+              'Internet yo\'q — OFLAYN kirdingiz. Savdo ishlaydi, cheklar '
+              'navbatga tushadi va aloqa qaytganda o\'zi yuboriladi.'),
+        ));
+      }
       // KASSIR smena yopiq bo'lsa kira olmaydi — smenani menejer ochadi.
       // (Menejer smenasiz ham kiradi: aynan u smenani ochishi kerak.)
       final s = ref.read(sessionProvider);
@@ -178,6 +198,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             loading: state.loading,
             onDigit: _digit,
             onBackspace: _backspace,
+            onSubmit: _submit,
             onClearError: () => ref.read(loginControllerProvider.notifier).clearError(),
           );
           if (!wide) return SafeArea(child: panel);
@@ -243,6 +264,7 @@ class _RightPanel extends StatelessWidget {
     required this.loading,
     required this.onDigit,
     required this.onBackspace,
+    required this.onSubmit,
     required this.onClearError,
   });
 
@@ -251,6 +273,7 @@ class _RightPanel extends StatelessWidget {
   final bool loading;
   final ValueChanged<String> onDigit;
   final VoidCallback onBackspace;
+  final VoidCallback onSubmit;
   final VoidCallback onClearError;
 
   @override
@@ -282,7 +305,12 @@ class _RightPanel extends StatelessWidget {
                       const SizedBox(height: 36),
                       _PinDots(length: pin.length, error: error != null),
                       const SizedBox(height: 36),
-                      _Keypad(onDigit: onDigit, onBackspace: onBackspace),
+                      _Keypad(
+                        onDigit: onDigit,
+                        onBackspace: onBackspace,
+                        onSubmit: onSubmit,
+                        canSubmit: pin.length >= _pinMin && !loading,
+                      ),
                       const SizedBox(height: 8),
                       // Yuklanish holati — PIN to'lgach avto-kirishda ko'rinadi.
                       SizedBox(
@@ -384,7 +412,7 @@ class _PinDots extends StatelessWidget {
     const red = Color(0xFFE5484D);
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(_pinLength, (i) {
+      children: List.generate(_pinMax, (i) {
         // Xato holatida (Figma): barcha 4 nuqta qizil to'la ko'rinadi.
         final filled = error || i < length;
         final color = error
@@ -407,9 +435,18 @@ class _PinDots extends StatelessWidget {
 
 /// Raqamli klaviatura — 1..9, [bo'sh] 0 backspace. Dizayndagi qora yumaloq keys.
 class _Keypad extends StatelessWidget {
-  const _Keypad({required this.onDigit, required this.onBackspace});
+  const _Keypad({
+    required this.onDigit,
+    required this.onBackspace,
+    required this.onSubmit,
+    required this.canSubmit,
+  });
   final ValueChanged<String> onDigit;
   final VoidCallback onBackspace;
+  final VoidCallback onSubmit;
+
+  /// 3 raqamdan kam terilgan bo'lsa ✓ o'chiq turadi.
+  final bool canSubmit;
 
   @override
   Widget build(BuildContext context) {
@@ -425,7 +462,11 @@ class _Keypad extends StatelessWidget {
         crossAxisSpacing: 16,
         children: [
           for (var i = 1; i <= 9; i++) key('$i'),
-          const SizedBox.shrink(),
+          _KeyButton(
+            icon: Icons.check_rounded,
+            accent: canSubmit,
+            onTap: canSubmit ? onSubmit : null,
+          ),
           key('0'),
           _KeyButton(icon: Icons.backspace_outlined, onTap: onBackspace),
         ],
@@ -435,10 +476,20 @@ class _Keypad extends StatelessWidget {
 }
 
 class _KeyButton extends StatefulWidget {
-  const _KeyButton({this.label, this.icon, required this.onTap});
+  const _KeyButton({
+    this.label,
+    this.icon,
+    required this.onTap,
+    this.accent = false,
+  });
   final String? label;
   final IconData? icon;
-  final VoidCallback onTap;
+
+  /// null — tugma o'chiq (masalan ✓ hali yetarli raqam terilmaganda).
+  final VoidCallback? onTap;
+
+  /// true — yashil «Kirish» tugmasi.
+  final bool accent;
 
   @override
   State<_KeyButton> createState() => _KeyButtonState();
@@ -457,12 +508,20 @@ class _KeyButtonState extends State<_KeyButton> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 90),
         decoration: BoxDecoration(
-          color: _down ? const Color(0xFF3A3A40) : const Color(0xFF2A2A2E),
+          color: widget.onTap == null
+              ? const Color(0xFF1C1C20)
+              : widget.accent
+                  ? (_down ? const Color(0xFF27A862) : const Color(0xFF2FBF71))
+                  : (_down ? const Color(0xFF3A3A40) : const Color(0xFF2A2A2E)),
           borderRadius: BorderRadius.circular(18),
         ),
         child: Center(
           child: widget.icon != null
-              ? Icon(widget.icon, color: Colors.white, size: 28)
+              ? Icon(widget.icon,
+                  color: widget.onTap == null
+                      ? const Color(0xFF4A4A50)
+                      : Colors.white,
+                  size: 28)
               : Text(widget.label!,
                   style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w500)),
         ),

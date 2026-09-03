@@ -8,6 +8,7 @@ import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/providers/auth_providers.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/home/presentation/home_shell.dart';
+import 'features/kitchen/kitchen_screen.dart';
 import 'features/settings/presentation/settings_screen.dart';
 
 // Faqat ishlab chiqish/vizual tekshiruv uchun: login'ni chetlab o'tib to'g'ridan
@@ -93,10 +94,14 @@ class _AibaPosAppState extends ConsumerState<AibaPosApp> {
           ? HomeShell(initialIndex: _kDebugIndex)
           : (!_restored
               ? const _Splash()
+              // Oshpaz o'z paroli bilan kirsa — Kitchen ekrani (kassa emas):
+              // tayyorlagan ovqatlarini kiritadi, POS/TV darhol ko'radi.
               : session != null
-                  ? const HomeShell()
-                  // Birinchi o'rnatiш: terminal sozlanmaган bo'lса — setup
-                  // (Sozlamalar). Save'дан keyin login'ga o'tadi.
+                  ? (session.staff.role == 'kitchen'
+                      ? const KitchenScreen()
+                      : const HomeShell())
+                  // Birinchi o'rnatish: terminal sozlanmagan bo'lsa — setup
+                  // (Sozlamalar). Save'dan keyin login'ga o'tadi.
                   : (configured
                       ? const LoginScreen()
                       : const SettingsScreen())),

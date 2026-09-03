@@ -12,6 +12,7 @@ class AuthRemoteDataSource {
     required String pin,
     required bool openShift,
     required num openingCash,
+    String tenantSlug = '',
   }) async {
     final res = await _client.post<Map<String, dynamic>>(
       '/api/v2/pos-terminal/auth/login',
@@ -22,6 +23,9 @@ class AuthRemoteDataSource {
         'pin': pin,
         'open_shift': openShift,
         'opening_cash': openingCash,
+        // Biznes kodi — «T1» boshqa biznesda ham bo'lsa begona bazaga
+        // tushmaslik uchun. Bo'sh bo'lsa server o'zi topadi.
+        if (tenantSlug.trim().isNotEmpty) 'tenant_slug': tenantSlug.trim(),
       },
     );
     return AuthSessionModel.fromLoginJson(res.data ?? const {});

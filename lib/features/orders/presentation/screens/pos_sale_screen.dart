@@ -82,11 +82,15 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
       return true;
     }
     if (k == LogicalKeyboardKey.f3) {
-      _checkout(context, ref, PaymentMethod.qr);
+      // F3 — Click Pass: skaner maydoni ochiq keladi, mijoz QRi o'qilishi
+      // bilan pul yechiladi (Uzum tanlansa maydon yashirinadi — qo'lda
+      // tasdiqlash). Avval F10'da edi — F10 bo'limlar aylanishiga qaytdi.
+      _checkout(context, ref, PaymentMethod.qr, qrScan: true);
       return true;
     }
     if (k == LogicalKeyboardKey.f4) {
-      _checkout(context, ref, PaymentMethod.card);
+      // F4 — karta: dialog UzCard'dan ochiladi (F4 yana bosilsa Humo).
+      _checkout(context, ref, PaymentMethod.uzcard);
       return true;
     }
     if (k == LogicalKeyboardKey.f5) {
@@ -124,15 +128,7 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
       _closeOrder(context, ref);
       return true;
     }
-    // F10 — Click Pass (tezkor yo'l): mijoz QR ko'rsatdi → kassir F10 bosib
-    // skanerlaydi → pul yechilishi bilan order o'zi yopiladi. Savat bo'sh
-    // bo'lsa F10 bo'limlar aylanishiga (home_shell) qoladi.
-    if (k == LogicalKeyboardKey.f10) {
-      final cart = ref.read(cartProvider);
-      if (cart.isEmpty) return false;
-      _checkout(context, ref, PaymentMethod.qr, qrScan: true);
-      return true;
-    }
+    // F10 — bo'limlar aylanishi (home_shell); Click Pass endi F3'da.
     // F12 — bugungi FISKAL QILINMAGAN naqd cheklar ro'yxati: kassir kerakli
     // orderni tanlaydi, u soliqqa yuborilib QR bilan chiqadi va ro'yxatdan
     // o'chadi. (Naqd cheklar avtomatik fiskal QILINMAYDI — talab bo'yicha.)
@@ -302,7 +298,7 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
     // Keldi-ketdi (VIP mehmon) — manager Telegram kodi bilan tasdiqlanadi,
     // pul olinmaydi, chek "keldi-ketdi" to'lovi bilan yopiladi.
     // QR bosilса — Payme/Click/QR skaner oynasi; aks holda oddiy to'lov oynasi.
-    final List<Payment>? payments;
+    List<Payment>? payments;
     if (method == PaymentMethod.keldiKetdi) {
       final ok = await KeldiKetdiDialog.show(context, amount: cart.total);
       if (ok != true || !context.mounted) return;
@@ -310,16 +306,27 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
         Payment(PaymentMethod.keldiKetdi, cart.total, label: 'Keldi-ketdi'),
       ];
     } else if (method == PaymentMethod.qr) {
-      // Click / Uzum. F10 (qrScan=true) — Click Pass: skaner maydoni ochiq,
-      // mijoz QRi o'qilishi bilan pul yechiladi va order AVTOMATIK yopiladi.
-      // F3 (qrScan=false) — statik QR: mijoz kassadagi QRni ilovada to'laydi,
-      // kassir qo'lda tasdiqlaydi.
+      // Click / Uzum. F3 (qrScan=true) — Click Pass: Click tanlangan bo'lsa
+      // skaner maydoni ochiq, mijoz QRi o'qilishi bilan pul yechiladi va
+      // order AVTOMATIK yopiladi; Uzum tanlansa maydon yashirinadi — kassir
+      // pul kelganini ko'rib qo'lda tasdiqlaydi.
       payments = await QrPayDialog.show(context, cart.total, scanMode: qrScan);
     } else {
       payments =
           await PaymentDialog.show(context, cart.total, initialMethod: method);
     }
     if (payments == null || payments.isEmpty || !context.mounted) return;
+
+    // QISMAN TO'LOV: QR (Click/Uzum) chekning bir qismini yopgan bo'lsa,
+    // qolgani uchun to'lov oynasi ochiladi (naqd / UzCard / Humo / QR —
+    // bo'lib to'lash). Bekor qilinsa BUTUN savdo bekor — chek yopilmaydi.
+    var paidSum = payments.fold<num>(0, (s, p) => s + p.amount);
+    if (paidSum < cart.total) {
+      final rest = await PaymentDialog.show(context, cart.total - paidSum);
+      if (rest == null || rest.isEmpty || !context.mounted) return;
+      payments = [...payments, ...rest];
+      paidSum = payments.fold<num>(0, (s, p) => s + p.amount);
+    }
 
     // Daily order number is generated locally so the printed receipt always
     // carries one — even when the sale is queued offline.
@@ -816,7 +823,7 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
               child: Padding(
                 padding: const EdgeInsets.only(top: 46),
                 child: CartPanel(
-                    onCheckout: (m) => _checkout(context, ref, m)),
+                    onCheckout: (m) => _checkout(context, ref, m, qrScan: m == PaymentMethod.qr)),
               ),
             ),
           ],
@@ -849,7 +856,7 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
         heightFactor: 0.85,
         child: CartPanel(onCheckout: (m) {
           Navigator.of(context).pop();
-          _checkout(context, ref, m);
+          _checkout(context, ref, m, qrScan: m == PaymentMethod.qr);
         }),
       ),
     );

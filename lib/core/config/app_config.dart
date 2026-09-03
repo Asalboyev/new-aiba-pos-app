@@ -13,6 +13,7 @@ class AppConfig {
 
   static const _kBaseUrl = 'base_url';
   static const _kTerminalCode = 'terminal_code';
+  static const _kTenantSlug = 'tenant_slug';
   static const _kPrinterHost = 'printer_host';
   static const _kPrinterPort = 'printer_port';
   static const _kPrinterUsb = 'printer_usb';
@@ -32,7 +33,22 @@ class AppConfig {
   // Dokumentatsiya bo'yicha prod manzili doim localhost:8347.
   static const defaultCommunicatorUrl = 'http://127.0.0.1:8347/uzpos';
 
-  String get baseUrl => _prefs.getString(_kBaseUrl) ?? defaultBaseUrl;
+  String get baseUrl => _fixLocalhost(_prefs.getString(_kBaseUrl) ?? defaultBaseUrl);
+
+  /// `localhost` → `127.0.0.1`.
+  ///
+  /// macOS/Windows'da `localhost` AVVAL IPv6 (`::1`) ga hal bo'ladi. Kassa
+  /// serveri odatda faqat IPv4 da tinglaydi (`127.0.0.1:PORT`), shuning
+  /// uchun Dart IPv6 ga urinib «Tarmoq xatosi» berardi — `curl` esa
+  /// IPv4 ga o'tib ishlab ketavergani uchun sabab ko'rinmasdi.
+  /// Bir xil mashinadagi server bilan ishlaganda shu bitta almashtirish
+  /// muammoni butunlay yopadi.
+  static String _fixLocalhost(String url) => url.replaceFirstMapped(
+        // Faqat HOST sifatidagi `localhost` — keyin port, yo'l yoki oxir
+        // kelishi shart. `localhost.aiba.uz` kabi domenga tegilmaydi.
+        RegExp(r'^(https?://)localhost(?=$|[:/])'),
+        (m) => '${m[1]}127.0.0.1',
+      );
 
   /// URL normalizatsiyasi: scheme yozilmagan bo'lsa qo'shiladi (IP/localhost →
   /// http, domen → https), oxiridagi «/» olib tashlanadi. «next.aiba.uz» deb
@@ -49,6 +65,13 @@ class AppConfig {
   }
 
   String get terminalCode => _prefs.getString(_kTerminalCode) ?? '';
+
+  /// BIZNES KODI (ixtiyoriy). Terminal kodi «T1» bir nechta biznesda
+  /// bo'lishi mumkin — server ikkalasida PIN mos kelsa kirishni rad etadi
+  /// va shu kodni so'raydi. To'ldirilsa qidiruv faqat o'sha biznesda.
+  String get tenantSlug => _prefs.getString(_kTenantSlug) ?? '';
+  Future<void> setTenantSlug(String v) =>
+      _prefs.setString(_kTenantSlug, v.trim().toLowerCase());
   Future<void> setTerminalCode(String value) =>
       _prefs.setString(_kTerminalCode, value.trim());
 
@@ -116,8 +139,23 @@ class AppConfig {
   }
 
   // --- Secure token ---
-  Future<String?> getToken() => _secure.read(key: _kToken);
+  /// TOKEN XOTIRADA KESHLANADI. Har HTTP so'rovda interceptor tokenni
+  /// o'qiydi; secure storage esa Android'da platform kanali orqali ishlaydi
+  /// (har o'qish ~10-40 ms). Kassa daqiqada o'nlab so'rov yuboradi — shuning
+  /// uchun birinchi o'qishdan keyin xotiradagi nusxa ishlatiladi.
+  String? _tokenCache;
+  bool _tokenLoaded = false;
+
+  Future<String?> getToken() async {
+    if (_tokenLoaded) return _tokenCache;
+    _tokenCache = await _secure.read(key: _kToken);
+    _tokenLoaded = true;
+    return _tokenCache;
+  }
+
   Future<void> setToken(String? token) async {
+    _tokenCache = token;
+    _tokenLoaded = true;
     if (token == null) {
       await _secure.delete(key: _kToken);
     } else {

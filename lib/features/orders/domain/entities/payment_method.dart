@@ -2,6 +2,10 @@
 enum PaymentMethod {
   cash('cash', 'Naqd'),
   card('card', 'Karta'),
+  // Karta terminali ikki tarmoq bo'yicha ALOHIDA hisoblanadi (buxgalter
+  // UzCard va Humo tushumini alohida ko'radi — eski koreshok kabi).
+  uzcard('uzcard', 'UzCard'),
+  humo('humo', 'Humo'),
   qr('qr', 'QR'),
   // Click / Uzum — QR to'lovlari alohida hisoblanadi (admin panel va smena
   // hisobotida har biri o'z ustunida ko'rinadi).

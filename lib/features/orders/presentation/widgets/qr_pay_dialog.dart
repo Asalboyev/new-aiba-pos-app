@@ -55,6 +55,24 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
 
   final _scan = TextEditingController();
   final _scanFocus = FocusNode();
+
+  /// QISMAN TO'LOV: mijoz QR orqali chek summasining bir qismini to'lashi
+  /// mumkin — qolgani keyin naqd/karta bilan yopiladi (savdo ekrani
+  /// avtomatik to'lov oynasini ochadi).
+  late final TextEditingController _amountCtl =
+      TextEditingController(text: _fmtInt(widget.total));
+
+  static String _fmtInt(num v) => v
+      .toStringAsFixed(0)
+      .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]} ');
+
+  num get _amount {
+    final raw = num.tryParse(_amountCtl.text.replaceAll(RegExp(r'[^0-9]'), ''));
+    final v = raw ?? widget.total;
+    // 0 yoki jamidan ortiq bo'lishi mumkin emas.
+    if (v <= 0) return widget.total;
+    return v > widget.total ? widget.total : v;
+  }
   bool _processing = false;
   String? _error;
   String? _info;
@@ -76,6 +94,7 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
   void dispose() {
     _scan.dispose();
     _scanFocus.dispose();
+    _amountCtl.dispose();
     super.dispose();
   }
 
@@ -94,7 +113,7 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
   /// Tugma bosildi (mishka/barmoq) — ataylab qilingan harakat, darhol yopiladi.
   void _finishManual() {
     Navigator.of(context).pop([
-      Payment(_method, widget.total, label: '$_providerName (qo\'lda)'),
+      Payment(_method, _amount, label: '$_providerName (qo\'lda)'),
     ]);
   }
 
@@ -121,7 +140,9 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
         data: {
           'provider': _providerCode,
           'token': token,
-          'amount': widget.total,
+          // Qisman to'lov: kassir summani kamaytirgan bo'lsa shu qism
+          // yechiladi, qolgani boshqa usulda yopiladi.
+          'amount': _amount,
         },
       );
       final data = (res.data is Map) ? res.data as Map : const {};
@@ -130,7 +151,7 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
       if (status == 'paid') {
         // Pul yechildi — order avtomatik yopiladi, fiskal chek chiqadi.
         Navigator.of(context).pop([
-          Payment(_method, widget.total, label: _providerName),
+          Payment(_method, _amount, label: _providerName),
         ]);
         return;
       }
@@ -253,7 +274,55 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
+                // QISMAN TO'LOV: summani kamaytirsa — shu qismi QR bilan
+                // yechiladi, QOLGANI keyin naqd/karta oynasida yopiladi.
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text('Yechiladigan summa (qisman bo\'lsa kamaytiring)',
+                          style:
+                              TextStyle(color: PosColors.label, fontSize: 13)),
+                    ),
+                    SizedBox(
+                      width: 160,
+                      child: TextField(
+                        controller: _amountCtl,
+                        enabled: !_processing,
+                        keyboardType: TextInputType.number,
+                        textAlign: TextAlign.right,
+                        onChanged: (v) => setState(() {}),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700),
+                        decoration: InputDecoration(
+                          isDense: true,
+                          suffixText: "so'm",
+                          suffixStyle: const TextStyle(
+                              color: PosColors.muted, fontSize: 13),
+                          filled: true,
+                          fillColor: PosColors.field,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_amount < widget.total)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      'Qolgan ${Money.formatSom(widget.total - _amount)} — '
+                      'keyingi oynada naqd/karta bilan yopiladi',
+                      style: const TextStyle(
+                          color: Color(0xFFE08A12), fontSize: 12.5),
+                    ),
+                  ),
+                const SizedBox(height: 12),
                 const Text('To\'lov turi',
                     style: TextStyle(color: PosColors.label, fontSize: 13)),
                 const SizedBox(height: 8),
@@ -268,16 +337,26 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
                           selected: _provider == i,
                           onTap: _processing
                               ? null
-                              : () => setState(() => _provider = i),
+                              : () {
+                                  setState(() => _provider = i);
+                                  // Clickka qaytilsa skaner darhol tayyor
+                                  // bo'lsin (Uzumda maydon yashirin).
+                                  if (widget.scanMode && i == 0) {
+                                    WidgetsBinding.instance.addPostFrameCallback(
+                                        (_) => _scanFocus.requestFocus());
+                                  }
+                                },
                         ),
                       ),
                       if (i < _providers.length - 1) const SizedBox(width: 10),
                     ],
                   ],
                 ),
-                // Skaner maydoni — FAQAT Click Pass rejimida (F10): mijoz
-                // KO'RSATGAN QR shu yerga o'qiladi va pul avtomatik yechiladi.
-                if (widget.scanMode) ...[
+                // Skaner maydoni — Click Pass (F3) rejimida va FAQAT Click
+                // tanlanganda: mijoz KO'RSATGAN QR shu yerga o'qiladi va pul
+                // avtomatik yechiladi. Uzumga o'tilsa maydon YASHIRINADI —
+                // kassir pul kelganini ko'rib qo'lda tasdiqlaydi.
+                if (widget.scanMode && _provider == 0) ...[
                   const SizedBox(height: 18),
                   Container(
                     padding: const EdgeInsets.all(16),
