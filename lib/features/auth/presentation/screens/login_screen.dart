@@ -19,11 +19,11 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-// Parol uzunligi 3–6 raqam (adminka xodim kartochkasidagi bilan bir xil).
-// AVTO-KIRISH yo'q: uzunlik oldindan noma'lum, shuning uchun kassir ✓
-// tugmasini (yoki fizik klaviaturada Enter) bosadi.
+// Parol 3–4 raqam (adminka xodim kartochkasidagi bilan bir xil). Eski
+// tizimdagi 3 raqamli kodlar (100, 102) ✓ yoki Enter bilan kiritiladi;
+// 4-raqam terilishi bilan AVTOMATIK kiriladi — kassir tugma bosmaydi.
 const int _pinMin = 3;
-const int _pinMax = 6;
+const int _pinMax = 4;
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   String _pin = '';
@@ -84,7 +84,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _openSettings();
       return;
     }
-
+    if (_pin.length >= _pinMax) _submit();
   }
 
   void _backspace() {

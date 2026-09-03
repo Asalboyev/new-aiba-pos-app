@@ -1,0 +1,14 @@
+AIBA POS — macOS'ga o'rnatish
+
+1. «AIBA POS»ni Applications papkasiga torting.
+2. Ilovani oching. «Apple could not verify…» yozuvi chiqsa → «Done» bosing
+   (Move to Trash EMAS).
+3. System Settings → Privacy & Security → pastga tushing →
+   «"AIBA POS" was blocked…» yonidagi «Open Anyway» → «Open».
+   (Bir marta so'raladi, keyin odatdagidek ochiladi.)
+
+Terminal orqali tez yo'l (ixtiyoriy):
+   xattr -cr "/Applications/AIBA POS.app"
+
+Sabab: ilova Apple Developer ID bilan notarizatsiya qilinmagan
+(yillik $99 hisob kerak). Notarizatsiya qilinsa bu qadam yo'qoladi.

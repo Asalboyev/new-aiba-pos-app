@@ -41,7 +41,7 @@ jobs:
           APP="build/macos/Build/Products/Release/AIBA POS.app"
           mkdir -p dist
           ditto -c -k --keepParent "$APP" "dist/AIBA-POS-macOS-$VER.zip"
-          STG=$(mktemp -d); cp -R "$APP" "$STG/"; ln -s /Applications "$STG/Applications"
+          STG=$(mktemp -d); cp -R "$APP" "$STG/"; ln -s /Applications "$STG/Applications"; cp "macos/O'RNATISH.txt" "$STG/"
           hdiutil create -quiet -volname "AIBA POS" -srcfolder "$STG" -ov -format UDZO "dist/AIBA-POS-macOS-$VER.dmg"
           ls -la dist
           echo "VER=$VER" >> "$GITHUB_ENV"
@@ -64,7 +64,10 @@ jobs:
           name: AIBA POS — oxirgi build
           body: |
             macOS: `.dmg`ni oching, «AIBA POS»ni Applications'ga torting.
-            Birinchi ochishda: o'ng tugma → Ochish (notarizatsiya yo'q).
+            Birinchi ochishda «Apple could not verify» chiqadi → Done →
+            System Settings → Privacy & Security → «Open Anyway» (bir marta).
+            Yoki terminalda: `xattr -cr "/Applications/AIBA POS.app"`.
+            Batafsil: dmg ichidagi O'RNATISH.txt.
             Windows: `build-windows` artifaktidan installer.
           files: dist/*
           prerelease: false
