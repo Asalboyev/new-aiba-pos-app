@@ -250,8 +250,11 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     final err = switch (o.stage) {
       DStage.yangi => await n.confirm(o.id),
       DStage.jarayonda => await n.setStatus(o.id, 'ready'),
-      DStage.tayyor => await n.setStatus(
-          o.id, o.courier == null ? 'picked_up' : 'delivered'),
+      // Kassir «Yetkazildi» bosdi — buyurtma yakunlanadi. Kuryer botda
+      // «Mahsulot oldim» bossa POS o'zi 'picked_up' qiladi; kassirning
+      // tugmasi esa DOIM yakuniy 'delivered' — aks holda kuryer ulanmagan
+      // buyurtma «Tayyor»da abadiy qotib qolardi.
+      DStage.tayyor => await n.setStatus(o.id, 'delivered'),
       _ => null,
     };
     if (!mounted) return;
@@ -664,6 +667,40 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
             onTap: () => _advance(o),
           )),
         ]);
+      case DStage.tayyor:
+        // Kuryer holati (matn) + kassir yakunlash tugmasi bir joyda.
+        final line = o.statusLine;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (line != null) ...[
+              Text(line,
+                  style: TextStyle(
+                      color: o.courier != null ? _green : _w42,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: 12),
+            ],
+            Row(children: [
+              Expanded(
+                  child: _BigButton(
+                label: 'Bekor qilish',
+                icon: 'x',
+                color: _red.withValues(alpha: 0.2),
+                textColor: _red,
+                onTap: () => _cancel(o),
+              )),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: _BigButton(
+                label: 'Yetkazildi',
+                icon: 'check',
+                color: _green,
+                onTap: () => _advance(o),
+              )),
+            ]),
+          ],
+        );
       default:
         final line = o.statusLine;
         if (line == null) return const SizedBox.shrink();
@@ -1064,6 +1101,17 @@ class _OrderCard extends StatelessWidget {
                         ? Colors.white.withValues(alpha: 0.18)
                         : _green.withValues(alpha: 0.12),
                     textColor: selected ? Colors.white : _green,
+                    onTap: onReady),
+              ] else if (order.stage == DStage.tayyor) ...[
+                // Kassir yakunlaydi: «Yetkazildi» → Yetkazilgan ustuni.
+                const SizedBox(height: 12),
+                _SmallButton(
+                    label: 'Yetkazildi',
+                    icon: 'check',
+                    color: selected
+                        ? Colors.white.withValues(alpha: 0.18)
+                        : _green,
+                    textColor: Colors.white,
                     onTap: onReady),
               ],
             ],
