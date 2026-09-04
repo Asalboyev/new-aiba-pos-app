@@ -103,9 +103,11 @@ class DOrder {
   int get total => totalSum;
 
   String? get statusLine => switch (stage) {
-        DStage.tayyor =>
-          courier == null ? 'kuryer qidirilmoqda...' : 'kuryer qabul qildi - $courier',
-        DStage.yetkazilgan => 'kuryer qabul qildi - ${courier ?? ''}',
+        DStage.tayyor => courier == null
+            ? 'kuryer qidirilmoqda...'
+            : 'kuryer tayinlandi - $courier',
+        DStage.yolda => "Yo'lda · ${courier ?? 'kuryer'}",
+        DStage.yetkazilgan => "Yetkazildi${courier != null ? ' · $courier' : ''}",
         DStage.bekor => 'Bekor qilindi',
         _ => null,
       };
@@ -132,6 +134,7 @@ const _green = Color(0xFF22C55E);
 const _red = Color(0xFFFF3535);
 const _btnBlue = Color(0xFF2273E7);
 const _chipBlue = Color(0xFF2277EA);
+const _indigo = Color(0xFF6366F1); // Yo'lda (kuryer yo'lda)
 const _w08 = Color(0x14FFFFFF); // oq 8%
 const _w12 = Color(0x1FFFFFFF); // oq 12%
 const _w42 = Color(0x6BFFFFFF); // oq 42%
@@ -146,8 +149,9 @@ class _StageStyle {
 _StageStyle _style(DStage s) => switch (s) {
       DStage.yangi => const _StageStyle('Yangi', _chipBlue, 'package'),
       DStage.jarayonda => const _StageStyle('Jarayonda', _amber, 'soup'),
-      DStage.tayyor => const _StageStyle('Tayyor', _green, 'truck'),
-      DStage.yetkazilgan => const _StageStyle('Yetkazilgan', _green, 'checks'),
+      DStage.tayyor => const _StageStyle('Tayyor', _green, 'checks'),
+      DStage.yolda => const _StageStyle("Yo'lda", _indigo, 'truck'),
+      DStage.yetkazilgan => const _StageStyle('Yetkazilgan', _green, 'check'),
       DStage.bekor => const _StageStyle('Bekor qilingan', _red, 'x'),
     };
 
@@ -255,6 +259,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       // tugmasi esa DOIM yakuniy 'delivered' — aks holda kuryer ulanmagan
       // buyurtma «Tayyor»da abadiy qotib qolardi.
       DStage.tayyor => await n.setStatus(o.id, 'delivered'),
+      // «Yo'lda»dagi (kuryer olib ketgan) buyurtmani ham «Yetkazildi» yakunlaydi.
+      DStage.yolda => await n.setStatus(o.id, 'delivered'),
       _ => null,
     };
     if (!mounted) return;
@@ -668,6 +674,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
           )),
         ]);
       case DStage.tayyor:
+      case DStage.yolda:
         // Kuryer holati (matn) + kassir yakunlash tugmasi bir joyda.
         final line = o.statusLine;
         return Column(
@@ -1102,8 +1109,11 @@ class _OrderCard extends StatelessWidget {
                         : _green.withValues(alpha: 0.12),
                     textColor: selected ? Colors.white : _green,
                     onTap: onReady),
-              ] else if (order.stage == DStage.tayyor) ...[
+              ] else if (order.stage == DStage.tayyor ||
+                  order.stage == DStage.yolda) ...[
                 // Kassir yakunlaydi: «Yetkazildi» → Yetkazilgan ustuni.
+                // «Tayyor» (kuryer kutilyapti) va «Yo'lda» (kuryer olib ketgan)
+                // — ikkovidan ham yakunlash mumkin.
                 const SizedBox(height: 12),
                 _SmallButton(
                     label: 'Yetkazildi',

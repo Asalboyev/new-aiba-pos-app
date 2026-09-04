@@ -23,12 +23,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/core_providers.dart';
 
 /// Kanban ustunlari — serverdagi `stage` bilan bir xil so'zlar.
-enum DStage { yangi, jarayonda, tayyor, yetkazilgan, bekor }
+enum DStage { yangi, jarayonda, tayyor, yolda, yetkazilgan, bekor }
 
 DStage stageFrom(String? s) => switch (s) {
       'yangi' => DStage.yangi,
       'jarayonda' => DStage.jarayonda,
       'tayyor' => DStage.tayyor,
+      'yolda' => DStage.yolda,
       'yetkazilgan' => DStage.yetkazilgan,
       _ => DStage.bekor,
     };
