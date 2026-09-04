@@ -17,6 +17,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -201,7 +202,15 @@ class KitchenNotifier extends StateNotifier<KitchenState> {
         pendingCount: (await _queue(prefs)).length,
       );
       await flushQueue();
-    } catch (_) {
+    } catch (e) {
+      // 401 — token yaroqsiz/eskirgan (masalan boshqa serverga ulangan
+      // yoki muddati o'tgan). Bu «internet yo'q» EMAS: OFLAYN deb keshda
+      // ushlab turmasdan, oshpazni login ekraniga qaytaramiz — u qayta
+      // kirsa yangi token olinadi. Aks holda ekran «OFLAYN» bo'lib qotardi.
+      if (e is DioException && e.response?.statusCode == 401) {
+        await _ref.read(sessionProvider.notifier).logout();
+        return;
+      }
       final raw = prefs.getString(_cacheKey);
       var dishes = state.dishes;
       if (dishes.isEmpty && raw != null) {
