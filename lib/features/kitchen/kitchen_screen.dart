@@ -525,27 +525,57 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                             ),
                             const SizedBox(width: 8),
                           ],
-                          // POS terminalidagidek: yaqqol «Chiqish» tugmasi
-                          // (Esc bilan ham chiqiladi).
-                          Material(
-                            color: PosColors.red.withValues(alpha: .16),
-                            borderRadius: BorderRadius.circular(12),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(12),
-                              onTap: () =>
-                                  ref.read(sessionProvider.notifier).logout(),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 11),
-                                child: Row(mainAxisSize: MainAxisSize.min, children: const [
+                          // Web POS panelidagidek: yumaloq yashil avatar
+                          // (oshpaz bosh harflari) — bosilsa menyu (Chiqish).
+                          PopupMenuButton<String>(
+                            tooltip: '',
+                            color: PosColors.panel,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            onSelected: (v) {
+                              if (v == 'logout') {
+                                ref.read(sessionProvider.notifier).logout();
+                              }
+                            },
+                            itemBuilder: (_) => [
+                              PopupMenuItem(
+                                enabled: false,
+                                child: Text(
+                                  '${session?.staff.name ?? ''}\nOshpaz',
+                                  style: const TextStyle(
+                                      color: PosColors.label, fontSize: 13),
+                                ),
+                              ),
+                              const PopupMenuDivider(),
+                              const PopupMenuItem(
+                                value: 'logout',
+                                child: Row(children: [
                                   Icon(Icons.logout, size: 18, color: PosColors.red),
-                                  SizedBox(width: 6),
+                                  SizedBox(width: 10),
                                   Text('Chiqish',
-                                      style: TextStyle(
-                                          color: PosColors.red,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700)),
+                                      style: TextStyle(color: PosColors.red)),
                                 ]),
+                              ),
+                            ],
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: const BoxDecoration(
+                                  color: PosColors.green, shape: BoxShape.circle),
+                              child: Center(
+                                child: Text(
+                                  (session?.staff.name ?? 'A')
+                                      .trim()
+                                      .split(' ')
+                                      .map((w) => w.isEmpty ? '' : w[0])
+                                      .take(2)
+                                      .join()
+                                      .toUpperCase(),
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 14),
+                                ),
                               ),
                             ),
                           ),
