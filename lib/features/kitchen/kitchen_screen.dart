@@ -515,7 +515,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                           // sig'masdan qator 118px oshib ketardi. Flexible +
                           // ellipsis bilan ism qisqaradi, tor ekranda esa
                           // umuman ko'rsatilmaydi (asosiysi — qidiruv).
-                          if (MediaQuery.of(context).size.width >= 600)
+                          if (MediaQuery.of(context).size.width >= 700) ...[
                             Flexible(
                               child: Text(session?.staff.name ?? '',
                                   maxLines: 1,
@@ -523,12 +523,31 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                                   style: const TextStyle(
                                       color: PosColors.muted, fontSize: 14)),
                             ),
-                          IconButton(
-                            tooltip: 'Chiqish',
-                            onPressed: () =>
-                                ref.read(sessionProvider.notifier).logout(),
-                            icon: const Icon(Icons.logout,
-                                size: 20, color: PosColors.muted),
+                            const SizedBox(width: 8),
+                          ],
+                          // POS terminalidagidek: yaqqol «Chiqish» tugmasi
+                          // (Esc bilan ham chiqiladi).
+                          Material(
+                            color: PosColors.red.withValues(alpha: .16),
+                            borderRadius: BorderRadius.circular(12),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () =>
+                                  ref.read(sessionProvider.notifier).logout(),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 11),
+                                child: Row(mainAxisSize: MainAxisSize.min, children: const [
+                                  Icon(Icons.logout, size: 18, color: PosColors.red),
+                                  SizedBox(width: 6),
+                                  Text('Chiqish',
+                                      style: TextStyle(
+                                          color: PosColors.red,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700)),
+                                ]),
+                              ),
+                            ),
                           ),
                         ],
                       ),
