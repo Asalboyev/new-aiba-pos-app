@@ -18,6 +18,7 @@ import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -305,6 +306,55 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
   String? _cat; // null = Hammasi (stansiya/kategoriya filtri)
   int _batchNo = 1;
   final Map<String, double> _basket = {}; // product_id → qty
+  final _searchCtl = TextEditingController();
+  final _searchFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    // Kassa terminalidagidek klaviatura bilan boshqarish (sichqonchasiz):
+    //   F1 — qidiruvga o'tish; Enter — savatchani tasdiqlash; Esc — chiqish.
+    HardwareKeyboard.instance.addHandler(_onHwKey);
+  }
+
+  bool _onHwKey(KeyEvent e) {
+    if (e is! KeyDownEvent || !mounted) return false;
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) return false; // dialog ochiq
+    final k = e.logicalKey;
+    if (k == LogicalKeyboardKey.f1) {
+      _searchFocus.requestFocus();
+      _searchCtl.selection = TextSelection(baseOffset: 0, extentOffset: _searchCtl.text.length);
+      return true;
+    }
+    if (k == LogicalKeyboardKey.escape) {
+      if (_searchFocus.hasFocus) { _searchFocus.unfocus(); return true; }
+      ref.read(sessionProvider.notifier).logout();
+      return true;
+    }
+    if (k == LogicalKeyboardKey.enter || k == LogicalKeyboardKey.numpadEnter) {
+      if (_searchFocus.hasFocus) {
+        final st = ref.read(kitchenProvider);
+        KitchenDish? first;
+        for (final d in st.dishes) {
+          if ((_cat == null || d.category == _cat) &&
+              (_q.isEmpty || d.name.toLowerCase().contains(_q.toLowerCase()))) { first = d; break; }
+        }
+        if (first != null) { _add(first); _searchCtl.clear(); setState(() => _q = ''); }
+        return true;
+      }
+      if (_basket.isNotEmpty) { _confirm(); return true; }
+    }
+    return false;
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onHwKey);
+    _searchCtl.dispose();
+    _searchFocus.dispose();
+    super.dispose();
+  }
 
   void _add(KitchenDish d, [double n = 1]) {
     setState(() => _basket[d.productId] = (_basket[d.productId] ?? 0) + n);
@@ -416,11 +466,14 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                         children: [
                           Expanded(
                             child: TextField(
+                              controller: _searchCtl,
+                              focusNode: _searchFocus,
                               onChanged: (v) => setState(() => _q = v),
+                              textInputAction: TextInputAction.search,
                               style: const TextStyle(fontSize: 17),
                               decoration: InputDecoration(
                                 isDense: true,
-                                hintText: 'Taom qidirish…',
+                                hintText: 'Taom qidirish (F1)…',
                                 prefixIcon: const Icon(Icons.search, size: 20),
                                 filled: true,
                                 fillColor: PosColors.field,

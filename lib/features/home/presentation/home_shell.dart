@@ -115,121 +115,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   }
 
   Future<void> _logout() async {
-    final session = ref.read(sessionProvider);
-    final hasOpenShift = session?.shiftId != null ||
-        ref.read(currentShiftProvider).valueOrNull != null;
-
-    // Kassirdan "smenani yopasizmi?" SO'RALMAYDI — smena menejerniki,
-    // kassir shunchaki chiqib ketadi (smena ochiq qolaveradi).
-    if (hasOpenShift && _isManager) {
-      final action = await showDialog<String>(
-        context: context,
-        builder: (dctx) => Dialog(
-          backgroundColor: const Color(0xFF1C1D22),
-          insetPadding:
-              const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          // Mishkasiz: 1 — Bekor (Esc), 2 — Smenani yopish (Enter), 3 — chiqish.
-          child: Focus(
-            autofocus: true,
-            onKeyEvent: (node, e) {
-              if (e is! KeyDownEvent) return KeyEventResult.ignored;
-              final k = e.logicalKey;
-              if (k == LogicalKeyboardKey.escape ||
-                  k == LogicalKeyboardKey.digit1) {
-                Navigator.of(dctx).pop('cancel');
-                return KeyEventResult.handled;
-              }
-              if (k == LogicalKeyboardKey.enter ||
-                  k == LogicalKeyboardKey.numpadEnter ||
-                  k == LogicalKeyboardKey.digit2) {
-                Navigator.of(dctx).pop('shift');
-                return KeyEventResult.handled;
-              }
-              if (k == LogicalKeyboardKey.digit3) {
-                Navigator.of(dctx).pop('logout');
-                return KeyEventResult.handled;
-              }
-              return KeyEventResult.ignored;
-            },
-            child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                          color: const Color(0x1FF5A623),
-                          borderRadius: BorderRadius.circular(11)),
-                      child: const Icon(Icons.warning_amber_rounded,
-                          color: Color(0xFFF5A623), size: 22),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text('Smena hali ochiq',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700)),
-                    ),
-                  ]),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Smena yopilmagan (Z-hisobot chiqmagan). Baribir chiqasizmi?\n\n'
-                    'Ma\'lumot yo\'qolmaydi — qayta kirsangiz smena davom etadi.',
-                    style: TextStyle(
-                        color: PosColors.muted, fontSize: 14, height: 1.45),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(children: [
-                    Expanded(
-                      child: _DlgBtn(
-                        label: '1 · Bekor',
-                        onTap: () => Navigator.of(dctx).pop('cancel'),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _DlgBtn(
-                        label: '2 · Smenani yopish',
-                        onTap: () => Navigator.of(dctx).pop('shift'),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _DlgBtn(
-                        label: '3 · Baribir chiqish',
-                        color: PosColors.red,
-                        onTap: () => Navigator.of(dctx).pop('logout'),
-                      ),
-                    ),
-                  ]),
-                  const SizedBox(height: 10),
-                  const Center(
-                    child: Text('Esc/1 — Bekor · Enter/2 — Smenani yopish · '
-                        '3 — Baribir chiqish',
-                        style: TextStyle(color: PosColors.muted, fontSize: 11)),
-                  ),
-                ],
-              ),
-            ),
-            ),
-          ),
-        ),
-      );
-      if (!mounted || action == null || action == 'cancel') return;
-      if (action == 'shift') {
-        setState(() => _index = 1);
-        return;
-      }
-    }
+    // Chiqishda hech qanday oyna chiqmaydi — «Smena hali ochiq» ogohlantirishi
+    // ishni sekinlashtirardi. Smena menejerniki: kassir/oshpaz shunchaki
+    // chiqib ketadi (smena ochiq qoladi, qayta kirsa davom etadi). Smenani
+    // yopish menejerda «Ish vaqti» bo'limida alohida.
+    if (!mounted) return;
     await ref.read(sessionProvider.notifier).logout();
   }
 
@@ -400,35 +290,7 @@ class _RefreshButton extends ConsumerWidget {
   }
 }
 
-class _DlgBtn extends StatelessWidget {
-  const _DlgBtn({required this.label, required this.onTap, this.color});
-  final String label;
-  final VoidCallback onTap;
-  final Color? color;
-  @override
-  Widget build(BuildContext context) {
-    final filled = color != null;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        height: 52,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: filled ? color : PosColors.card,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: filled ? color! : PosColors.cardBorder),
-        ),
-        child: Text(label,
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-                color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-      ),
-    );
-  }
-}
+
 
 /// Smena ochilmagan holatdagi to'siq — savdo ekrani o'rnida chiqadi.
 /// Enter yoki tugma — "Ish vaqti" bo'limiga o'tkazadi.
