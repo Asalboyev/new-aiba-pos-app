@@ -484,6 +484,70 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                               ),
                             ),
                           ),
+                          const SizedBox(width: 10),
+                          if (st.offline || st.pendingCount > 0) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: PosColors.red.withValues(alpha: .18),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                st.pendingCount > 0 && MediaQuery.of(context).size.width >= 700
+                                    ? 'OFLAYN · ${st.pendingCount} navbatda'
+                                    : 'OFLAYN',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    color: PosColors.red, fontWeight: FontWeight.w700, fontSize: 13),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          // POS savdo ekranidagidek: eng tepada — yangilash + avatar (menyu).
+                          _RoundIconBtn(
+                            icon: Icons.refresh,
+                            onTap: () => ref.read(kitchenProvider.notifier).load(),
+                          ),
+                          const SizedBox(width: 8),
+                          PopupMenuButton<String>(
+                            tooltip: '',
+                            color: PosColors.panel,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            onSelected: (v) {
+                              if (v == 'logout') {
+                                ref.read(sessionProvider.notifier).logout();
+                              }
+                            },
+                            itemBuilder: (_) => [
+                              PopupMenuItem(
+                                enabled: false,
+                                child: Text('${session?.staff.name ?? ''}\nOshpaz',
+                                    style: const TextStyle(color: PosColors.label, fontSize: 13)),
+                              ),
+                              const PopupMenuDivider(),
+                              const PopupMenuItem(
+                                value: 'logout',
+                                child: Row(children: [
+                                  Icon(Icons.logout, size: 18, color: PosColors.red),
+                                  SizedBox(width: 10),
+                                  Text('Chiqish', style: TextStyle(color: PosColors.red)),
+                                ]),
+                              ),
+                            ],
+                            child: Container(
+                              width: 42,
+                              height: 42,
+                              decoration: const BoxDecoration(color: PosColors.green, shape: BoxShape.circle),
+                              child: Center(
+                                child: Text(
+                                  (session?.staff.name ?? 'A').trim().split(' ')
+                                      .map((w) => w.isEmpty ? '' : w[0]).take(2).join().toUpperCase(),
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14),
+                                ),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                       if (cats.length > 1) ...[
@@ -572,88 +636,16 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                   children: [
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-                      child: Row(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Buyurtma $_batchNo',
-                                    style: const TextStyle(
-                                        fontSize: 19, fontWeight: FontWeight.w800)),
-                                const SizedBox(height: 2),
-                                Text(
-                                    st.offline || st.pendingCount > 0
-                                        ? 'OFLAYN${st.pendingCount > 0 ? ' · ${st.pendingCount} navbatda' : ''}'
-                                        : 'Tayyorlangan taomlar kirimi',
-                                    style: TextStyle(
-                                        color: (st.offline || st.pendingCount > 0)
-                                            ? PosColors.red
-                                            : PosColors.muted,
-                                        fontSize: 12.5,
-                                        fontWeight: (st.offline || st.pendingCount > 0)
-                                            ? FontWeight.w700
-                                            : FontWeight.w400)),
-                              ],
-                            ),
-                          ),
-                          // POS panelidagidek: yumaloq yangilash + avatar (menyu).
-                          _RoundIconBtn(
-                            icon: Icons.refresh,
-                            onTap: () => ref.read(kitchenProvider.notifier).load(),
-                          ),
-                          const SizedBox(width: 8),
-                          PopupMenuButton<String>(
-                            tooltip: '',
-                            color: PosColors.panel,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                            onSelected: (v) {
-                              if (v == 'logout') {
-                                ref.read(sessionProvider.notifier).logout();
-                              }
-                            },
-                            itemBuilder: (_) => [
-                              PopupMenuItem(
-                                enabled: false,
-                                child: Text('${session?.staff.name ?? ''}\nOshpaz',
-                                    style: const TextStyle(
-                                        color: PosColors.label, fontSize: 13)),
-                              ),
-                              const PopupMenuDivider(),
-                              const PopupMenuItem(
-                                value: 'logout',
-                                child: Row(children: [
-                                  Icon(Icons.logout, size: 18, color: PosColors.red),
-                                  SizedBox(width: 10),
-                                  Text('Chiqish',
-                                      style: TextStyle(color: PosColors.red)),
-                                ]),
-                              ),
-                            ],
-                            child: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: const BoxDecoration(
-                                  color: PosColors.green, shape: BoxShape.circle),
-                              child: Center(
-                                child: Text(
-                                  (session?.staff.name ?? 'A')
-                                      .trim()
-                                      .split(' ')
-                                      .map((w) => w.isEmpty ? '' : w[0])
-                                      .take(2)
-                                      .join()
-                                      .toUpperCase(),
-                                  style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 14),
-                                ),
-                              ),
-                            ),
-                          ),
+                          Text('Buyurtma $_batchNo',
+                              style: const TextStyle(
+                                  fontSize: 19, fontWeight: FontWeight.w800)),
+                          const SizedBox(height: 2),
+                          const Text('Tayyorlangan taomlar kirimi',
+                              style: TextStyle(
+                                  color: PosColors.muted, fontSize: 12.5)),
                         ],
                       ),
                     ),
