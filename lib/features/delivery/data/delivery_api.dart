@@ -16,6 +16,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:aiba_pos_terminal/core/errors/failure.dart';
 import 'package:dio/dio.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -344,6 +345,11 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
   /// bo'lib chiqardi — kassir esa aslida mahsulot katalogda yo'qligini
   /// bilishi kerak edi va internetni tekshirib vaqt yo'qotardi.
   String _errText(Object e) {
+    // DioClient xatoni allaqachon `Failure`ga o'girib bergan (ServerFailure
+    // ichida serverning `detail` matni turadi). Buni tekshirmasak, pastdagi
+    // umumiy «Bajarilmadi» chiqardi — kassir mahsulot katalogda yo'qligini
+    // bilmasdi.
+    if (e is Failure && e.message.trim().isNotEmpty) return e.message;
     if (e is DioException) {
       final data = e.response?.data;
       // FastAPI xatoni `{"detail": "..."}` ko'rinishida qaytaradi.
