@@ -26,7 +26,8 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/providers/core_providers.dart';
 import '../../core/widgets/app_background.dart';
-import '../../core/widgets/pos_chrome.dart';
+import '../../core/theme/app_theme.dart';
+import 'kitchen_theme.dart';
 import '../auth/presentation/providers/auth_providers.dart';
 
 // ── Model ────────────────────────────────────────────────────────────────────
@@ -311,6 +312,10 @@ class KitchenScreen extends ConsumerStatefulWidget {
 }
 
 class _KitchenScreenState extends ConsumerState<KitchenScreen> {
+  /// build'dan tashqarida (dialog/snackbar) palet — hozirgi fon bo'yicha.
+  KitchenPalette get _c =>
+      ref.read(kitchenLightProvider) ? KitchenPalette.light : KitchenPalette.dark;
+
   String _q = '';
   String? _cat; // null = Hammasi (stansiya/kategoriya filtri)
   int _batchNo = 1;
@@ -386,7 +391,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
     final v = await showDialog<double>(
       context: context,
       builder: (dctx) => AlertDialog(
-        backgroundColor: PosColors.panel,
+        backgroundColor: _c.panel,
         title: Text(d.name, style: const TextStyle(fontSize: 18)),
         content: TextField(
           controller: ctl,
@@ -429,7 +434,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
     });
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       behavior: SnackBarBehavior.floating,
-      backgroundColor: online ? PosColors.green : PosColors.red,
+      backgroundColor: online ? _c.green : _c.red,
       content: Text(online
           ? 'Buyurtma qo\'shildi — POS va TV yangilandi. Chiqilmoqda…'
           : 'OFLAYN saqlandi — internet qaytishi bilan yuboriladi. Chiqilmoqda…'),
@@ -456,11 +461,21 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
         .where((d) => _q.isEmpty || d.name.toLowerCase().contains(_q.toLowerCase()))
         .toList();
     final totalPicked = _basket.values.fold<double>(0, (s, v) => s + v);
+    // Oq / qora fon — faqat oshxona ekrani (kassa doim qora).
+    final light = ref.watch(kitchenLightProvider);
+    final c = light ? KitchenPalette.light : KitchenPalette.dark;
+    final base = light ? AppTheme.light() : AppTheme.dark();
 
-    return Scaffold(
-      backgroundColor: PosColors.bg,
-      body: AppBackground(
-        child: SafeArea(
+    // Orqa fon rasmi (suv) ikkala rejimda ham qoladi — Figma light'da ham
+    // panellar oq, orqasi esa shu rasm.
+    Widget backdrop(Widget child) => AppBackground(child: child);
+
+    return Theme(
+      data: base.copyWith(extensions: <ThemeExtension<dynamic>>[c]),
+      child: Scaffold(
+      backgroundColor: c.bg,
+      body: backdrop(
+        SafeArea(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -485,7 +500,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                                 hintText: 'Taom qidirish (F1)…',
                                 prefixIcon: const Icon(Icons.search, size: 20),
                                 filled: true,
-                                fillColor: PosColors.field,
+                                fillColor: c.field,
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                   borderSide: BorderSide.none,
@@ -498,7 +513,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                               decoration: BoxDecoration(
-                                color: PosColors.red.withValues(alpha: .18),
+                                color: c.red.withValues(alpha: .18),
                                 borderRadius: BorderRadius.circular(999),
                               ),
                               child: Text(
@@ -507,8 +522,8 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                                     : 'OFLAYN',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    color: PosColors.red, fontWeight: FontWeight.w700, fontSize: 13),
+                                style: TextStyle(
+                                    color: c.red, fontWeight: FontWeight.w700, fontSize: 13),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -521,33 +536,46 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                           const SizedBox(width: 8),
                           PopupMenuButton<String>(
                             tooltip: '',
-                            color: PosColors.panel,
+                            color: c.panel,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             onSelected: (v) {
                               if (v == 'logout') {
                                 ref.read(sessionProvider.notifier).logout();
+                              } else if (v == 'theme') {
+                                ref.read(kitchenLightProvider.notifier).toggle();
                               }
                             },
                             itemBuilder: (_) => [
                               PopupMenuItem(
                                 enabled: false,
                                 child: Text('${session?.staff.name ?? ''}\nOshpaz',
-                                    style: const TextStyle(color: PosColors.label, fontSize: 13)),
+                                    style: TextStyle(color: c.label, fontSize: 13)),
                               ),
                               const PopupMenuDivider(),
-                              const PopupMenuItem(
+                              // Oq fon ↔ qora fon (faqat oshxona ekrani, eslab qolinadi)
+                              PopupMenuItem(
+                                value: 'theme',
+                                child: Row(children: [
+                                  Icon(light ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+                                      size: 18, color: c.label),
+                                  const SizedBox(width: 10),
+                                  Text(light ? 'Qora fon' : 'Oq fon', style: TextStyle(color: c.label)),
+                                ]),
+                              ),
+                              const PopupMenuDivider(),
+                              PopupMenuItem(
                                 value: 'logout',
                                 child: Row(children: [
-                                  Icon(Icons.logout, size: 18, color: PosColors.red),
-                                  SizedBox(width: 10),
-                                  Text('Chiqish', style: TextStyle(color: PosColors.red)),
+                                  Icon(Icons.logout, size: 18, color: c.red),
+                                  const SizedBox(width: 10),
+                                  Text('Chiqish', style: TextStyle(color: c.red)),
                                 ]),
                               ),
                             ],
                             child: Container(
                               width: 42,
                               height: 42,
-                              decoration: const BoxDecoration(color: PosColors.green, shape: BoxShape.circle),
+                              decoration: BoxDecoration(color: c.green, shape: BoxShape.circle),
                               child: Center(
                                 child: Text(
                                   (session?.staff.name ?? 'A').trim().split(' ')
@@ -585,19 +613,19 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                       Expanded(
                         child: Container(
                           decoration: BoxDecoration(
-                            color: PosColors.panel,
+                            color: c.panel,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           padding: const EdgeInsets.all(14),
                           child: st.loading && dishes.isEmpty
                               ? const Center(child: CircularProgressIndicator())
                               : dishes.isEmpty
-                                  ? const Center(
+                                  ? Center(
                                       child: Text(
                                           'Oshxona hisobida taom yo\'q —\nadmin paneldan «Taom qo\'shish» qiling.',
                                           textAlign: TextAlign.center,
                                           style: TextStyle(
-                                              color: PosColors.muted,
+                                              color: c.muted,
                                               fontSize: 16)))
                                   : LayoutBuilder(builder: (context, gc) {
                                       final cols = (gc.maxWidth / 175)
@@ -636,9 +664,9 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                 width: 320,
                 margin: const EdgeInsets.fromLTRB(8, 12, 16, 16),
                 decoration: BoxDecoration(
-                  color: PosColors.panel,
+                  color: c.panel,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: PosColors.cardBorder),
+                  border: Border.all(color: c.cardBorder),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -652,34 +680,34 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                               style: const TextStyle(
                                   fontSize: 19, fontWeight: FontWeight.w800)),
                           const SizedBox(height: 2),
-                          const Text('Tayyorlangan taomlar kirimi',
+                          Text('Tayyorlangan taomlar kirimi',
                               style: TextStyle(
-                                  color: PosColors.muted, fontSize: 12.5)),
+                                  color: c.muted, fontSize: 12.5)),
                         ],
                       ),
                     ),
-                    const Divider(height: 1, color: PosColors.cardBorder),
+                    Divider(height: 1, color: c.cardBorder),
                     Expanded(
                       child: _basket.isEmpty
-                          ? const Center(
+                          ? Center(
                               child: Padding(
-                                padding: EdgeInsets.all(20),
+                                padding: const EdgeInsets.all(20),
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(Icons.shopping_cart_outlined,
-                                        size: 56, color: PosColors.iconChip),
-                                    SizedBox(height: 12),
-                                    Text('Savatcha hozircha bo\'sh',
+                                        size: 56, color: c.iconChip),
+                                    const SizedBox(height: 12),
+                                    const Text('Savatcha hozircha bo\'sh',
                                         style: TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w700)),
-                                    SizedBox(height: 4),
+                                    const SizedBox(height: 4),
                                     Text(
                                         'Taomlarni tanlang va savatchaga qo\'shing',
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
-                                            color: PosColors.muted,
+                                            color: c.muted,
                                             fontSize: 13)),
                                   ],
                                 ),
@@ -709,15 +737,15 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                               ],
                             ),
                     ),
-                    const Divider(height: 1, color: PosColors.cardBorder),
+                    Divider(height: 1, color: c.cardBorder),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text('${_basket.length} mahsulot turi',
-                              style: const TextStyle(
-                                  color: PosColors.muted, fontSize: 13)),
+                              style: TextStyle(
+                                  color: c.muted, fontSize: 13)),
                           Text('${_fmtQty(totalPicked)} ta mahsulot',
                               style: const TextStyle(
                                   fontSize: 16, fontWeight: FontWeight.w800)),
@@ -730,15 +758,15 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                         height: 52,
                         child: FilledButton(
                           style: FilledButton.styleFrom(
-                            backgroundColor: PosColors.blue,
-                            disabledBackgroundColor: PosColors.iconChip,
+                            backgroundColor: c.blue,
+                            disabledBackgroundColor: c.iconChip,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
                           ),
                           onPressed: _basket.isEmpty ? null : _confirm,
                           child: const Text('Tasdiqlash',
                               style: TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.w700)),
+                                  fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
                         ),
                       ),
                     ),
@@ -748,6 +776,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -767,11 +796,12 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = KitchenPalette.of(context);
     final (label, color) = dish.stopped || dish.status == 'out'
-        ? ('Tugadi', PosColors.red)
+        ? ('Tugadi', c.red)
         : dish.status == 'low'
-            ? ('Kam qoldi', const Color(0xFFE08A12))
-            : ('Yetarli', PosColors.green);
+            ? ('Kam qoldi', c.orange)
+            : ('Yetarli', c.green);
     return Container(
       padding: EdgeInsets.symmetric(horizontal: small ? 7 : 9, vertical: small ? 2 : 3),
       decoration: BoxDecoration(
@@ -795,6 +825,7 @@ class _DishImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = KitchenPalette.of(context);
     // `size` CHEKSIZ bo'lishi mumkin (katta kartochkada rasm butun enni
     // egallaydi — 741-qator). Bunda ikona o'lchami ham cheksiz bo'lib
     // Flutter «fontSize.isFinite» assertion'i bilan YIQILADI: rasmi yo'q
@@ -805,10 +836,10 @@ class _DishImage extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: PosColors.iconChip,
+        color: c.iconChip,
         borderRadius: BorderRadius.circular(radius),
       ),
-      child: Icon(Icons.restaurant, size: iconSize, color: PosColors.muted),
+      child: Icon(Icons.restaurant, size: iconSize, color: c.muted),
     );
     if (url == null || url!.isEmpty) return ph;
     return ClipRRect(
@@ -831,15 +862,16 @@ class _DishCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = KitchenPalette.of(context);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
         decoration: BoxDecoration(
-          color: PosColors.card,
+          color: c.card,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-              color: picked > 0 ? PosColors.blue : PosColors.cardBorder,
+              color: picked > 0 ? c.blue : c.cardBorder,
               width: picked > 0 ? 2 : 1),
         ),
         clipBehavior: Clip.antiAlias,
@@ -859,12 +891,12 @@ class _DishCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 9, vertical: 3),
                         decoration: BoxDecoration(
-                          color: PosColors.blue,
+                          color: c.blue,
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text('+${_fmtQty(picked)}',
                             style: const TextStyle(
-                                fontWeight: FontWeight.w800, fontSize: 13)),
+                                fontWeight: FontWeight.w800, fontSize: 13, color: Colors.white)),
                       ),
                     ),
                 ],
@@ -881,13 +913,13 @@ class _DishCard extends StatelessWidget {
                         child: Text(dish.name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 13.5, color: PosColors.label)),
+                            style: TextStyle(
+                                fontSize: 13.5, color: c.label)),
                       ),
                       if ((dish.sku ?? '').isNotEmpty)
                         Text('#${dish.sku}',
-                            style: const TextStyle(
-                                fontSize: 11, color: PosColors.muted)),
+                            style: TextStyle(
+                                fontSize: 11, color: c.muted)),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -927,13 +959,14 @@ class _BasketRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = KitchenPalette.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: PosColors.card,
+        color: c.card,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: PosColors.cardBorder),
+        border: Border.all(color: c.cardBorder),
       ),
       child: Row(
         children: [
@@ -988,6 +1021,7 @@ class _CatChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = KitchenPalette.of(context);
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: InkWell(
@@ -997,16 +1031,16 @@ class _CatChip extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: selected ? PosColors.blue : PosColors.card,
+            color: selected ? c.blue : c.card,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-                color: selected ? PosColors.blue : PosColors.cardBorder),
+                color: selected ? c.blue : c.cardBorder),
           ),
           child: Text(label,
               style: TextStyle(
                   fontSize: 14.5,
                   fontWeight: FontWeight.w700,
-                  color: selected ? Colors.white : PosColors.label)),
+                  color: selected ? Colors.white : c.label)),
         ),
       ),
     );
@@ -1020,8 +1054,9 @@ class _RoundIconBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = KitchenPalette.of(context);
     return Material(
-      color: PosColors.iconChip,
+      color: c.iconChip,
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
@@ -1029,7 +1064,7 @@ class _RoundIconBtn extends StatelessWidget {
         child: SizedBox(
           width: 40,
           height: 40,
-          child: Icon(icon, size: 20, color: PosColors.label),
+          child: Icon(icon, size: 20, color: c.label),
         ),
       ),
     );

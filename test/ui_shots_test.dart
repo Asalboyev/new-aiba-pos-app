@@ -32,6 +32,7 @@ import 'package:aiba_pos_terminal/features/auth/presentation/screens/login_scree
 import 'package:aiba_pos_terminal/features/delivery/presentation/screens/delivery_screen.dart';
 import 'package:aiba_pos_terminal/features/home/presentation/home_shell.dart';
 import 'package:aiba_pos_terminal/features/kitchen/kitchen_screen.dart';
+import 'package:aiba_pos_terminal/features/kitchen/kitchen_theme.dart';
 import 'package:aiba_pos_terminal/features/menu/domain/entities/category.dart';
 import 'package:aiba_pos_terminal/features/menu/domain/entities/product.dart';
 import 'package:aiba_pos_terminal/features/menu/presentation/providers/menu_providers.dart';
@@ -370,6 +371,16 @@ void main() {
   testWidgets('08 oshpaz — oshxona ekrani (planshet)', (t) async {
     await _shot(t, '08_oshpaz_tablet', _tablet, const KitchenScreen(),
         overrides: _base(role: 'kitchen', name: 'Oshpaz Ali'));
+  });
+
+  // OQ FON (Figma light) — avatar menyusidagi «Oq fon» tanlangan holat.
+  testWidgets('08b oshpaz — oshxona ekrani OQ fon', (t) async {
+    await _shot(t, '08b_oshpaz_light', _tablet, const KitchenScreen(),
+        overrides: [
+          ..._base(role: 'kitchen', name: 'Oshpaz Ali'),
+          kitchenLightProvider.overrideWith(
+              (ref) => KitchenThemeNotifier(_prefs!)..set(true)),
+        ]);
   });
 
   // Oshxona ekrani PLANSHET uchun qurilgan (Figma). Kichik planshet enida
