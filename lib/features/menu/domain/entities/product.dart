@@ -5,6 +5,9 @@ class Product extends Equatable {
   final String? categoryId;
   final String name;
   final String? sku;
+  /// Shtrix-kod (EAN-13/GTIN) — skaner shu bo'yicha topadi. MDB'da yo'q,
+  /// kassir skanerlab biriktiradi (backend `products/{id}/barcode`).
+  final String? barcode;
   final num price;
   final String? mxikCode;
   final String? packageCode;
@@ -30,6 +33,7 @@ class Product extends Equatable {
     this.categoryId,
     required this.name,
     this.sku,
+    this.barcode,
     required this.price,
     this.mxikCode,
     this.packageCode,
@@ -65,6 +69,27 @@ class Product extends Equatable {
         vatPercent: vatPercent,
         mxikCode: mxikCode,
         sku: sku,
+        barcode: barcode,
+        packageCode: packageCode,
+        markingRequired: markingRequired,
+        trackStock: trackStock,
+        stockQty: stockQty,
+        lowStockThreshold: lowStockThreshold,
+      );
+
+  /// Kassir skaner kodini biriktirgach lokal nusxani yangilash uchun.
+  Product copyWithBarcode(String? barcode) => Product(
+        id: id,
+        categoryId: categoryId,
+        name: name,
+        price: price,
+        unit: unit,
+        imageUrl: imageUrl,
+        isActive: isActive,
+        vatPercent: vatPercent,
+        mxikCode: mxikCode,
+        sku: sku,
+        barcode: barcode,
         packageCode: packageCode,
         markingRequired: markingRequired,
         trackStock: trackStock,
@@ -83,6 +108,7 @@ class Product extends Equatable {
         categoryId,
         name,
         sku,
+        barcode,
         price,
         mxikCode,
         packageCode,

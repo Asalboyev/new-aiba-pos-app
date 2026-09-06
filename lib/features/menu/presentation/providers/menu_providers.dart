@@ -148,6 +148,8 @@ final filteredProductsProvider = Provider<List<Product>>((ref) {
     int rank(Product p) {
       final sku = (p.sku ?? '').toLowerCase();
       if (sku == q) return 0;
+      final bc = (p.barcode ?? '').toLowerCase();
+      if (bc.isNotEmpty && bc == q.replaceFirst(RegExp(r'^0+'), '')) return 0;
       if (sku.isNotEmpty && sku.startsWith(q)) return 1;
       if (p.name.toLowerCase().startsWith(q)) return 2;
       return 3;
@@ -159,6 +161,8 @@ final filteredProductsProvider = Provider<List<Product>>((ref) {
       if (sku.isNotEmpty && sku.contains(q)) return true;
       final mxik = (p.mxikCode ?? '').toLowerCase();
       if (mxik.isNotEmpty && mxik.contains(q)) return true;
+      final bc = (p.barcode ?? '').toLowerCase();
+      if (bc.isNotEmpty && q.length >= 4 && bc.contains(q.replaceFirst(RegExp(r'^0+'), ''))) return true;
       return false;
     }).toList()
       ..sort((a, b) => rank(a).compareTo(rank(b)));

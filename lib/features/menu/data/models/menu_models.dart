@@ -19,6 +19,7 @@ class ProductModel {
         categoryId: j['category_id']?.toString(),
         name: (j['name'] ?? '').toString(),
         sku: j['sku']?.toString(),
+        barcode: j['barcode']?.toString(),
         price: Money.parse(j['price']),
         mxikCode: j['mxik_code']?.toString(),
         packageCode: j['package_code']?.toString(),

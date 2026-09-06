@@ -28,6 +28,8 @@ import '../widgets/payment_dialog.dart';
 import '../widgets/product_grid.dart';
 import '../widgets/qr_pay_dialog.dart';
 import '../widgets/unfiscalized_dialog.dart';
+import '../widgets/assign_barcode_dialog.dart';
+import '../../domain/scan_match.dart';
 
 class PosSaleScreen extends ConsumerStatefulWidget {
   const PosSaleScreen({super.key});
@@ -772,19 +774,15 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
           data: (p) => p,
           orElse: () => const <Product>[],
         );
-    final t = code.toLowerCase();
-    Product? hit;
-    for (final p in all) {
-      final sku = (p.sku ?? '').toLowerCase();
-      if (sku.isNotEmpty && (sku == t || t.contains(sku))) {
-        hit = p;
-        break;
-      }
-    }
+    // Shtrix-kod → SKU → MXIK (scan_match.dart). Ilgari faqat SKU'ga
+    // qaralardi: skaner EAN'ni o'qisa, SKU esa «вод1,5» — hech qachon
+    // topilmasdi va kassir «Mahsulot topilmadi» ko'rardi.
+    var hit = matchScan(all, code);
     if (hit == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Mahsulot topilmadi — kod bazada yo\'q')));
-      return;
+      // Kod bazada yo'q — kassir mahsulotni tanlaydi, kod biriktiriladi
+      // (keyingi safar hamma kassada o'zi topiladi).
+      hit = await AssignBarcodeDialog.show(context, normalizeScan(code));
+      if (hit == null || !context.mounted) return;
     }
     // Markirovkali mahsulotga skanerlangan DataMatrix kod label sifatida
     // biriktiriladi (soliqqa shu kod ketadi) va mahsulot AVTOMATIK savatga
