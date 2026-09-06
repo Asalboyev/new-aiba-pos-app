@@ -28,6 +28,10 @@ class Shift extends Equatable {
 
   /// Smena rasxodlari (manager Telegram botdan yozadi) — kassadan minus.
   final num expensesTotal;
+  /// Yopishda restoranda hali ochiq qolgan boshqa smenalar soni.
+  /// 0 → kun yopildi (kunlik sotilganlar cheki shu kassadan chiqadi);
+  /// -1 → noma'lum (eski server).
+  final int openShiftsLeft;
 
   /// Karta savdosining TURLARI. Bitta «Karta» ustuni bilan menejer
   /// UzCard va Humo aylanmasini ajratib ko'rmaydi — bank bilan
@@ -63,6 +67,7 @@ class Shift extends Equatable {
     this.uzumTotal = 0,
     this.keldiTotal = 0,
     this.expensesTotal = 0,
+    this.openShiftsLeft = -1,
     this.uzcardTotal = 0,
     this.humoTotal = 0,
     this.onlineByChannel = const {},

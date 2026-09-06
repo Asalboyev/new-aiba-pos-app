@@ -189,7 +189,6 @@ class ReceiptBuilder {
     final bytes = <int>[];
 
     final thin = '-' * cols;
-    final thick = '=' * cols;
 
     bytes.addAll(g.reset());
     bytes.addAll(cp866Select);
@@ -292,25 +291,26 @@ class ReceiptBuilder {
       styles: _normal,
     ));
 
-    bytes.addAll(_tx(g, thick, styles: _normal));
+    bytes.addAll(_tx(g, thin, styles: _normal));
 
     // ── Mahsulotlar ───────────────────────────────────────────────────────────
     for (final item in data.items) {
-      for (final l in _wrap(item.name, cols)) {
-        bytes.addAll(_tx(g, l,
-            styles: const PosStyles(
-              align: PosAlign.left,
-              bold: true,
-              height: PosTextSize.size1,
-              width: PosTextSize.size1,
-              fontType: PosFontType.fontA,
-            )));
+      // IXCHAM: nom + «soni x narx» + summa BIR qatorga sig'sa — bir qator
+      // (80mm da ko'p nomlar sig'adi); sig'masa nom alohida, ostida hisob.
+      final calc = '${_qty(item.qty)}x${Money.format(item.price)}';
+      final total = Money.format(item.lineTotal);
+      final oneLine = '${item.name} $calc';
+      if (item.qty == 1 && item.name.length + total.length + 1 <= cols) {
+        // 1 dona: «Palov  35 000» — hisob qatori shart emas.
+        bytes.addAll(_tx(g, _pair(item.name, total, cols), styles: _normal));
+      } else if (oneLine.length + total.length + 1 <= cols) {
+        bytes.addAll(_tx(g, _pair(oneLine, total, cols), styles: _normal));
+      } else {
+        for (final l in _wrap(item.name, cols)) {
+          bytes.addAll(_tx(g, l, styles: _normal));
+        }
+        bytes.addAll(_tx(g, _pair('  $calc', total, cols), styles: _normal));
       }
-      bytes.addAll(_tx(g, 
-        _pair('  ${_qty(item.qty)} x ${Money.format(item.price)}',
-            Money.format(item.lineTotal), cols),
-        styles: _normal,
-      ));
       if (data.showMxik && (item.mxikCode ?? '').isNotEmpty) {
         bytes.addAll(_tx(g, '  MXIK: ${item.mxikCode}', styles: _smallLeft));
       }
@@ -319,9 +319,9 @@ class ReceiptBuilder {
     bytes.addAll(_tx(g, thin, styles: _normal));
 
     // ── Jami ──────────────────────────────────────────────────────────────────
-    bytes.addAll(_tx(g, _pair('Oraliq', Money.format(data.subtotal), cols),
-        styles: _normal));
     if (data.discount > 0) {
+      bytes.addAll(_tx(g, _pair('Oraliq', Money.format(data.subtotal), cols),
+          styles: _normal));
       bytes.addAll(_tx(g, _pair('Chegirma', '-${Money.format(data.discount)}', cols),
           styles: _normal));
     }
@@ -356,7 +356,6 @@ class ReceiptBuilder {
         bytes.addAll(g.feed(1));
         bytes.addAll(_tx(g, data.footer!, styles: _center));
       }
-      bytes.addAll(g.feed(2));
       bytes.addAll(g.cut());
       return bytes;
     }
@@ -382,7 +381,6 @@ class ReceiptBuilder {
       bytes.addAll(g.feed(1));
       bytes.addAll(_tx(g, data.footer!, styles: _centerBold));
     }
-    bytes.addAll(g.feed(2));
     bytes.addAll(g.cut());
 
     return bytes;
@@ -416,7 +414,6 @@ class ReceiptBuilder {
         styles: _center));
     bytes.addAll(_tx(g, 'To\'lovdan so\'ng chek avtomatik chiqadi',
         styles: _small));
-    bytes.addAll(g.feed(2));
     bytes.addAll(g.cut());
     return bytes;
   }
@@ -553,17 +550,11 @@ class ReceiptBuilder {
           _tx(g, row('Rasxodlar', Money.formatSom(expenses)), styles: _z));
     }
     if (items.isNotEmpty) {
-      bytes.addAll(_tx(g, section('SOTILGANLAR'), styles: _z));
-      for (final it in items) {
-        // "3 x Osh" chapda, summasi o'ngda; uzun nom qisqartiriladi.
-        final qty = _qty(it.qty);
-        final amount = Money.formatSom(it.amount);
-        var left = '$qty x ${it.name}';
-        final maxLeft = cols - amount.length - 1;
-        if (left.length > maxLeft && maxLeft > 3) {
-          left = '${left.substring(0, maxLeft - 1)}.';
-        }
-        bytes.addAll(_tx(g, row(left, amount), styles: _z));
+      // Ro'yxat ODDIY shriftda (2x emas) — 100 xil taomda qog'oz 2 barobar
+      // tejaladi; soni ustuni tekis (o'ngga tekislangan 3 belgi).
+      bytes.addAll(_tx(g, section('SOTILGANLAR (${items.length})'), styles: _normal));
+      for (final line in _soldLines(items, cols)) {
+        bytes.addAll(_tx(g, line, styles: _normal));
       }
     }
     bytes.addAll(_tx(g, '=' * cols, styles: _z));
@@ -575,15 +566,33 @@ class ReceiptBuilder {
       bytes.addAll(_tx(g, 'Smena yopildi', styles: _centerBold));
       bytes.addAll(_tx(g, _formatDate(DateTime.now()), styles: _center));
     }
-    bytes.addAll(g.feed(2));
     bytes.addAll(g.cut());
     return bytes;
+  }
+
+  /// Sotilganlar qatorlari: «  3 x Nom ........ 105 000». Soni o'ngga
+  /// tekislangan (3 belgi), nom ustuni bir joydan boshlanadi, summa o'ng
+  /// chetda — ro'yxat jadval kabi tekis o'qiladi. Uzun nom qisqartiriladi.
+  static List<String> _soldLines(List<ZItem> items, int cols) {
+    final out = <String>[];
+    for (final it in items) {
+      final qty = _qty(it.qty).padLeft(3);
+      final amount = Money.format(it.amount);
+      var name = it.name;
+      final maxName = cols - amount.length - 1 - 6; // "nnn x " = 6 belgi
+      if (name.length > maxName && maxName > 3) {
+        name = '${name.substring(0, maxName - 1)}.';
+      }
+      out.add(_pair('$qty x $name', amount, cols));
+    }
+    return out;
   }
 
   /// «SOTILGANLAR» cheki — menejer XOHLASA alohida chiqaradi (Z-chekka
   /// avtomatik kirmaydi, 500+ mahsulotda juda uzun bo'lardi): smenada qaysi
   /// mahsulot qancha sotildi (soni x nomi = summa), oxirida JAMI.
   static Future<List<int>> buildSoldItems({
+    String title = 'SOTILGANLAR',
     required String restaurantName,
     required String shiftName,
     required List<ZItem> items,
@@ -601,31 +610,30 @@ class ReceiptBuilder {
 
     bytes.addAll(g.reset());
     bytes.addAll(cp866Select);
-    bytes.addAll(_tx(g, 'SOTILGANLAR', styles: _title));
+    bytes.addAll(_tx(g, title, styles: _title));
     bytes.addAll(_tx(g, restaurantName, styles: _centerBold));
-    if (shiftName.isNotEmpty) bytes.addAll(_tx(g, shiftName, styles: _center));
-    bytes.addAll(_tx(g, _formatDate(DateTime.now()), styles: _center));
-    bytes.addAll(_tx(g, '=' * cols, styles: _normal));
+    // Smena/kun va vaqt BIR qatorda — sarlavha 2 qator tejaladi.
+    final when = _formatDate(DateTime.now());
+    if (shiftName.isNotEmpty) {
+      bytes.addAll(_tx(g, row(shiftName, when), styles: _normal));
+    } else {
+      bytes.addAll(_tx(g, when, styles: _center));
+    }
+    bytes.addAll(_tx(g, '-' * cols, styles: _normal));
     num jami = 0;
     for (final it in items) {
       jami += it.amount;
-      final qty = _qty(it.qty);
-      final amount = Money.formatSom(it.amount);
-      var left = '$qty x ${it.name}';
-      final maxLeft = cols - amount.length - 1;
-      if (left.length > maxLeft && maxLeft > 3) {
-        left = '${left.substring(0, maxLeft - 1)}.';
-      }
-      bytes.addAll(_tx(g, row(left, amount), styles: _normal));
+    }
+    for (final line in _soldLines(items, cols)) {
+      bytes.addAll(_tx(g, line, styles: _normal));
     }
     if (items.isEmpty) {
       bytes.addAll(_tx(g, 'Hali savdo bo\'lmagan', styles: _center));
     }
-    bytes.addAll(_tx(g, '=' * cols, styles: _normal));
+    bytes.addAll(_tx(g, '-' * cols, styles: _normal));
     bytes.addAll(
         _tx(g, row('JAMI (${items.length} xil)', Money.formatSom(jami)),
             styles: _zBold));
-    bytes.addAll(g.feed(2));
     bytes.addAll(g.cut());
     return bytes;
   }
@@ -650,7 +658,6 @@ class ReceiptBuilder {
     bytes.addAll(_tx(g, '-' * _cols(paperWidth), styles: _normal));
     bytes.addAll(_tx(g, 'Qaysi chiziq chetga tegsa —', styles: _center));
     bytes.addAll(_tx(g, 'adminkada o\'sha kenglikni tanlang.', styles: _center));
-    bytes.addAll(g.feed(2));
     bytes.addAll(g.cut());
     return bytes;
   }

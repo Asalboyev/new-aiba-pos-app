@@ -142,25 +142,37 @@ class _ShiftScreenState extends ConsumerState<ShiftScreen> {
     }
   }
 
+  /// Sotilgan mahsulotlar ro'yxati: `shiftId` berilsa — o'sha smena, aks
+  /// holda bugungi kun (barcha kassalar).
+  Future<List<ZItem>> _fetchSoldItems({String? shiftId, int limit = 300}) async {
+    try {
+      final q = shiftId != null ? 'shift_id=$shiftId&limit=$limit' : 'limit=$limit';
+      final res = await ref
+          .read(dioClientProvider)
+          .get('/api/v2/pos-terminal/reports/top-products?$q');
+      final list = ((res.data is Map ? res.data['items'] : null) as List?) ?? const [];
+      return list
+          .map((e) => ZItem(
+                name: ((e as Map)['name'] ?? '').toString(),
+                qty: num.tryParse('${e['qty']}') ?? 0,
+                amount: num.tryParse('${e['amount']}') ?? 0,
+              ))
+          .toList();
+    } catch (_) {
+      return const <ZItem>[];
+    }
+  }
+
   Future<void> _printZReport(Shift z) async {
     try {
       final ses = ref.read(sessionProvider);
-      // SOTILGANLAR TO'LIQ ro'yxati Z-chekka kiradi (foydalanuvchi talabi:
-      // smena yopilganda nima sotilgani to'liq chiqsin).
-      var items = const <ZItem>[];
-      try {
-        final res = await ref.read(dioClientProvider).get(
-            '/api/v2/pos-terminal/reports/top-products?shift_id=${z.id}&limit=200');
-        final list =
-            ((res.data is Map ? res.data['items'] : null) as List?) ?? const [];
-        items = list
-            .map((e) => ZItem(
-                  name: ((e as Map)['name'] ?? '').toString(),
-                  qty: num.tryParse('${e['qty']}') ?? 0,
-                  amount: num.tryParse('${e['amount']}') ?? 0,
-                ))
-            .toList();
-      } catch (_) {}
+      // Adminka sozlamasi (Sozlamalar → Chek → «Sotilgan mahsulotlar ro'yxati»):
+      //   shift — ro'yxat Z-chek ichida (har smena);
+      //   day   — Z'da yo'q; restoranda OXIRGI smena yopilganda alohida
+      //           «KUNLIK SOTILGANLAR» cheki (butun kun, barcha kassalar);
+      //   none  — umuman chiqmaydi (pul kesimi baribir chiqadi).
+      final mode = ses?.restaurant.receiptSoldReport ?? 'shift';
+      final items = mode == 'shift' ? await _fetchSoldItems(shiftId: z.id) : const <ZItem>[];
       final bytes = await ReceiptBuilder.buildZReport(
         items: items,
         restaurantName: ses?.restaurant.name ?? 'AIBA',
@@ -186,6 +198,19 @@ class _ShiftScreenState extends ConsumerState<ShiftScreen> {
         paperWidth: ses?.restaurant.receiptPaperWidth ?? 80,
       );
       await ref.read(printerServiceProvider).printZReport(bytes);
+      if (mode == 'day' && z.openShiftsLeft == 0) {
+        final now = AppClock.now();
+        String two(int x) => x.toString().padLeft(2, '0');
+        final dayItems = await _fetchSoldItems(limit: 500);
+        final b2 = await ReceiptBuilder.buildSoldItems(
+          title: 'KUNLIK SOTILGANLAR',
+          restaurantName: ses?.restaurant.name ?? 'AIBA',
+          shiftName: '${two(now.day)}.${two(now.month)}.${now.year} · kun yopildi',
+          items: dayItems,
+          paperWidth: ses?.restaurant.receiptPaperWidth ?? 80,
+        );
+        await ref.read(printerServiceProvider).printZReport(b2);
+      }
     } catch (_) {
       if (mounted) _snack(context, 'Z-hisobot chop etilmadi (printer)');
     }

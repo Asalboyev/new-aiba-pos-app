@@ -18,6 +18,10 @@ class RestaurantInfo extends Equatable {
   final bool cashFiscalOnDemand;
   final bool receiptShowMxik;
   final int receiptPaperWidth; // 58 yoki 80 (mm)
+  /// Smena yopilganda «sotilgan mahsulotlar» ro'yxati: 'shift' — har smena
+  /// Z-chekda; 'day' — faqat kun oxirida (restoranda oxirgi smena yopilganda)
+  /// alohida chek; 'none' — chiqmaydi. Adminka → Sozlamalar → Chek.
+  final String receiptSoldReport;
   /// Restoran fiskal rejimi (mock / epos / epos_terminal). epos_terminal
   /// bo'lsa internet uzilganda chek lokal Communicator orqali fiskalizatsiya
   /// qilinadi (oflayn fiskal).
@@ -38,6 +42,7 @@ class RestaurantInfo extends Equatable {
     this.cashFiscalOnDemand = false,
     this.receiptShowMxik = true,
     this.receiptPaperWidth = 80,
+    this.receiptSoldReport = 'shift',
     this.fiscalProvider,
   });
 
@@ -59,6 +64,7 @@ class RestaurantInfo extends Equatable {
         receiptShowQr,
         receiptShowMxik,
         receiptPaperWidth,
+        receiptSoldReport,
         fiscalProvider,
       ];
 }

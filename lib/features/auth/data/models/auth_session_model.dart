@@ -25,6 +25,7 @@ class AuthSessionModel {
         receiptPaperWidth: (r['receipt_paper_width'] is int)
             ? r['receipt_paper_width'] as int
             : int.tryParse('${r['receipt_paper_width'] ?? 80}') ?? 80,
+        receiptSoldReport: (r['receipt_sold_report'] ?? 'shift').toString(),
         fiscalProvider: r['fiscal_provider']?.toString(),
       ),
       terminal: TerminalInfo(
@@ -60,6 +61,7 @@ class AuthSessionModel {
           'cash_fiscal_on_demand': s.restaurant.cashFiscalOnDemand,
           'receipt_show_mxik': s.restaurant.receiptShowMxik,
           'receipt_paper_width': s.restaurant.receiptPaperWidth,
+          'receipt_sold_report': s.restaurant.receiptSoldReport,
           // MUHIM: fiskal rejim ham saqlanadi. Avval saqlanmagani uchun
           // ilova qayta ochilganda `epos_terminal` (kassadagi Communicator
           // orqali OFLAYN fiskal) yo'qolib, chek fiskalsiz chiqardi.

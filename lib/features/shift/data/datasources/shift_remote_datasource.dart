@@ -59,6 +59,7 @@ class ShiftRemoteDataSource {
       uzumTotal: Money.parse(byMethod['uzum']),
       keldiTotal: Money.parse(byMethod['keldi_ketdi']),
       expensesTotal: Money.parse(j['expenses_total']),
+      openShiftsLeft: int.tryParse('${j['open_shifts_left']}') ?? -1,
       onlineByChannel: byChannel,
       onlineCount: int.tryParse('${online['count']}') ?? 0,
       onlineTotal: num.tryParse('${online['total']}') ?? 0,
