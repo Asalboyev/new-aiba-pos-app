@@ -239,7 +239,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           fontSize: 30,
                           fontWeight: FontWeight.w700)),
                   SizedBox(height: 4),
-                  Text('Bistro POS tizimini sozlash · v1.0.1',
+                  Text('Bistro POS tizimini sozlash · v1.0.2 (2026-09-07)',
                       style: TextStyle(color: _muted, fontSize: 15)),
                 ],
               ),
