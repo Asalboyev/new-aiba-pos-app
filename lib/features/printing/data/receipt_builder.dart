@@ -37,12 +37,65 @@ class ReceiptBuilder {
     'қ': 'k', 'Қ': 'K', 'ғ': 'g', 'Ғ': 'G', 'ҳ': 'h', 'Ҳ': 'H',
   };
 
-  static String _sanitize(String s) {
+  /// Kirillni lotinga o'girish (Sozlamalar → Printer → «Kirillni lotinga
+  /// o'girish»). Printer CP866 ni bilmasa yoqiladi — matn o'qiladigan qoladi.
+  /// PrinterService har chop etishdan oldin sozlamadan o'rnatadi.
+  static bool latinize = false;
+
+  static const Map<String, String> _lat = {
+    'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo', 'ж': 'j', 'з': 'z',
+    'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r',
+    'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'x', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'sh',
+    'ъ': "'", 'ы': 'i', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya',
+    'ў': "o'", 'қ': 'q', 'ғ': "g'", 'ҳ': 'h',
+    'А': 'A', 'Б': 'B', 'В': 'V', 'Г': 'G', 'Д': 'D', 'Е': 'E', 'Ё': 'Yo', 'Ж': 'J', 'З': 'Z',
+    'И': 'I', 'Й': 'Y', 'К': 'K', 'Л': 'L', 'М': 'M', 'Н': 'N', 'О': 'O', 'П': 'P', 'Р': 'R',
+    'С': 'S', 'Т': 'T', 'У': 'U', 'Ф': 'F', 'Х': 'X', 'Ц': 'Ts', 'Ч': 'Ch', 'Ш': 'Sh', 'Щ': 'Sh',
+    'Ъ': "'", 'Ы': 'I', 'Ь': '', 'Э': 'E', 'Ю': 'Yu', 'Я': 'Ya',
+    'Ў': "O'", 'Қ': 'Q', 'Ғ': "G'", 'Ҳ': 'H',
+  };
+
+  /// Kirill → lotin (rus + o'zbek kirill). Boshqa belgilar o'zgarmaydi.
+  static String translit(String s) {
     final b = StringBuffer();
     for (final ch in s.split('')) {
+      b.write(_lat[ch] ?? ch);
+    }
+    return b.toString();
+  }
+
+  static String _sanitize(String s) {
+    final src = latinize ? translit(s) : s;
+    final b = StringBuffer();
+    for (final ch in src.split('')) {
       b.write(_replace[ch] ?? ch);
     }
     return b.toString();
+  }
+
+  /// FAVQULODDA chek — yig'ishda kutilmagan xato bo'lsa ham kassir/mijoz
+  /// hech qursa summa va raqamni oladi (faqat ASCII, hech narsa otmaydi).
+  static Future<List<int>> buildMinimal(ReceiptData data) async {
+    final profile = await CapabilityProfile.load();
+    final g = Generator(data.paperWidth == 58 ? PaperSize.mm58 : PaperSize.mm80, profile);
+    final cols = _cols(data.paperWidth);
+    String ascii(String t) => translit(t).runes.map((r) => r < 0x80 ? String.fromCharCode(r) : '?').join();
+    final bytes = <int>[];
+    bytes.addAll(g.reset());
+    bytes.addAll(_tx(g, ascii(data.restaurantName), styles: _title));
+    if (data.orderNumber != null) bytes.addAll(_tx(g, 'Chek #${ascii(data.orderNumber!)}', styles: _centerBold));
+    bytes.addAll(_tx(g, _formatDate(data.createdAt), styles: _center));
+    bytes.addAll(_tx(g, '-' * cols, styles: _normal));
+    for (final it in data.items) {
+      bytes.addAll(_tx(g, _pair(ascii('${_qty(it.qty)} x ${it.name}'), Money.format(it.lineTotal), cols), styles: _normal));
+    }
+    bytes.addAll(_tx(g, '-' * cols, styles: _normal));
+    bytes.addAll(_tx(g, _pair('JAMI', Money.formatSom(data.total), cols), styles: _big));
+    for (final p in data.payments) {
+      bytes.addAll(_tx(g, _pair(ascii(p.label), Money.format(p.amount), cols), styles: _normal));
+    }
+    bytes.addAll(g.cut());
+    return bytes;
   }
 
   /// CP866 kodlash: ASCII o'z holicha, kirill — jadval bo'yicha, qolgan
@@ -258,16 +311,19 @@ class ReceiptBuilder {
     if ((data.legalName ?? '').isNotEmpty && data.legalName != data.restaurantName) {
       bytes.addAll(_tx(g, data.legalName!, styles: _center));
     }
-    if ((data.inn ?? '').isNotEmpty) {
-      bytes.addAll(_tx(g, 'INN: ${data.inn}', styles: _center));
+    // INN va telefon BIR qatorda (sig'sa) — sarlavha 1 qator qisqaradi.
+    final innTxt = (data.inn ?? '').isNotEmpty ? 'INN: ${data.inn}' : '';
+    final telTxt = (data.phone ?? '').isNotEmpty ? 'Tel: ${data.phone}' : '';
+    if (innTxt.isNotEmpty && telTxt.isNotEmpty && innTxt.length + telTxt.length + 3 <= cols) {
+      bytes.addAll(_tx(g, '$innTxt | $telTxt', styles: _center));
+    } else {
+      if (innTxt.isNotEmpty) bytes.addAll(_tx(g, innTxt, styles: _center));
+      if (telTxt.isNotEmpty) bytes.addAll(_tx(g, telTxt, styles: _center));
     }
     if ((data.address ?? '').isNotEmpty) {
       for (final l in _wrap(data.address!, cols)) {
         bytes.addAll(_tx(g, l, styles: _center));
       }
-    }
-    if ((data.phone ?? '').isNotEmpty) {
-      bytes.addAll(_tx(g, 'Tel: ${data.phone}', styles: _center));
     }
     if ((data.header ?? '').isNotEmpty) {
       bytes.addAll(_tx(g, data.header!, styles: _centerBold));

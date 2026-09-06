@@ -173,6 +173,7 @@ class _ShiftScreenState extends ConsumerState<ShiftScreen> {
       //   none  — umuman chiqmaydi (pul kesimi baribir chiqadi).
       final mode = ses?.restaurant.receiptSoldReport ?? 'shift';
       final items = mode == 'shift' ? await _fetchSoldItems(shiftId: z.id) : const <ZItem>[];
+      ref.read(printerServiceProvider).preparePrinter();
       final bytes = await ReceiptBuilder.buildZReport(
         items: items,
         restaurantName: ses?.restaurant.name ?? 'AIBA',
@@ -202,6 +203,7 @@ class _ShiftScreenState extends ConsumerState<ShiftScreen> {
         final now = AppClock.now();
         String two(int x) => x.toString().padLeft(2, '0');
         final dayItems = await _fetchSoldItems(limit: 500);
+        ref.read(printerServiceProvider).preparePrinter();
         final b2 = await ReceiptBuilder.buildSoldItems(
           title: 'KUNLIK SOTILGANLAR',
           restaurantName: ses?.restaurant.name ?? 'AIBA',
@@ -231,6 +233,7 @@ class _ShiftScreenState extends ConsumerState<ShiftScreen> {
                 amount: num.tryParse('${e['amount']}') ?? 0,
               ))
           .toList();
+      ref.read(printerServiceProvider).preparePrinter();
       final bytes = await ReceiptBuilder.buildSoldItems(
         restaurantName: ses?.restaurant.name ?? 'AIBA',
         shiftName: _shiftName(shift.openedAt),
@@ -274,6 +277,7 @@ class _ShiftScreenState extends ConsumerState<ShiftScreen> {
       final d = (res.data as Map?)?.cast<String, dynamic>() ?? const {};
       final bm = (d['by_method'] as Map?)?.cast<String, dynamic>() ?? const {};
       num n(dynamic v) => num.tryParse('$v') ?? 0;
+      ref.read(printerServiceProvider).preparePrinter();
       final bytes = await ReceiptBuilder.buildZReport(
         title: 'KUN HISOBOTI',
         showKassa: false,

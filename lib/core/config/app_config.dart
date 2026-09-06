@@ -17,6 +17,7 @@ class AppConfig {
   static const _kPrinterHost = 'printer_host';
   static const _kPrinterPort = 'printer_port';
   static const _kPrinterUsb = 'printer_usb';
+  static const _kPrinterLatin = 'printer_latin';
   static const _kPrinterName = 'printer_name';
   static const _kCommunicatorUrl = 'communicator_url';
   static const _kOrderSeqDate = 'order_seq_date';
@@ -102,6 +103,12 @@ class AppConfig {
   /// instead of a network one (takes precedence over [printerHost]).
   bool get printerUsb => _prefs.getBool(_kPrinterUsb) ?? false;
   Future<void> setPrinterUsb(bool value) => _prefs.setBool(_kPrinterUsb, value);
+
+  /// Chekda kirill matnni LOTINGA o'girish. Printer CP866 (kirill) kod
+  /// jadvalini bilmasa — chek «??? ???» bo'lib chiqadi; bu rejimda «Мастава»
+  /// → «Mastava». Standart o'chiq (aksariyat ESC/POS printerlar CP866 ni biladi).
+  bool get printerLatin => _prefs.getBool(_kPrinterLatin) ?? false;
+  Future<void> setPrinterLatin(bool value) => _prefs.setBool(_kPrinterLatin, value);
 
   /// Windows USB chop etish uchun o'rnatilgan printer nomi. Bo'sh bo'lsa —
   /// tizimning standart printeri ishlatiladi. (macOS'da kerak emas.)

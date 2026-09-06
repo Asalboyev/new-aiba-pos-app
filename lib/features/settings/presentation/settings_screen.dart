@@ -49,6 +49,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final TextEditingController _printerName;
   late final TextEditingController _communicatorUrl;
   bool _printerUsb = false;
+  bool _printerLatin = false;
   bool _dirty = false;
   bool _testing = false;
   bool _showToast = false;
@@ -65,6 +66,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _printerName = TextEditingController(text: _config.printerName);
     _communicatorUrl = TextEditingController(text: _config.communicatorUrl);
     _printerUsb = _config.printerUsb;
+    _printerLatin = _config.printerLatin;
     for (final c in [
       _baseUrl,
       _terminalCode,
@@ -102,6 +104,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       int.tryParse(_printerPort.text.trim()) ?? AppConfig.defaultPrinterPort,
     );
     await _config.setPrinterUsb(_printerUsb);
+    await _config.setPrinterLatin(_printerLatin);
     await _config.setPrinterName(_printerName.text);
     await _config.setCommunicatorUrl(_communicatorUrl.text);
   }
@@ -410,6 +413,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Kirill → lotin: printer CP866 kod jadvalini bilmasa (chek «???»
+          // bo'lib chiqsa) yoqiladi — «Мастава» → «Mastava».
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Kirillni lotinga o\'girish',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600)),
+                    SizedBox(height: 2),
+                    Text('Chek «???» bo\'lib chiqsa yoqing — Мастава → Mastava',
+                        style: TextStyle(color: _muted, fontSize: 12)),
+                  ],
+                ),
+              ),
+              Switch(
+                value: _printerLatin,
+                onChanged: (v) => setState(() => _printerLatin = v),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           Row(
             children: [
               const Expanded(

@@ -39,7 +39,7 @@ class PrinterService {
   Future<PrintReport> printReceipt(ReceiptData data) async {
     debugPrint('[PrinterService] printing: restaurant="${data.restaurantName}" '
         'payments=${data.payments.map((p) => p.method.code).join(',')}');
-    final bytes = await ReceiptBuilder.build(data);
+    final bytes = await _safeBuild(data);
     if (_config.printerUsb) return _sendLocal(bytes);
     final host = _config.printerHost;
     if (host != null && host.isNotEmpty) return _sendNetwork(host, bytes);
@@ -61,12 +61,35 @@ class PrinterService {
     );
   }
 
+  /// Chek baytlarini yig'ish — HECH QACHON exception bilan to'xtamaydi.
+  /// Odatiy yig'ish xato bersa (kutilmagan ma'lumot), lotin rejimda qayta
+  /// uriniladi; u ham bo'lmasa — minimal ASCII chek. Ilgari yig'ishdagi
+  /// bitta exception chekni umuman chiqarmasdi (kassir bilmasdan qolardi).
+  Future<List<int>> _safeBuild(ReceiptData data) async {
+    ReceiptBuilder.latinize = _config.printerLatin;
+    try {
+      return await ReceiptBuilder.build(data);
+    } catch (e, st) {
+      debugPrint('[PrinterService] receipt build failed: $e\n$st');
+    }
+    try {
+      ReceiptBuilder.latinize = true;
+      return await ReceiptBuilder.build(data);
+    } catch (e) {
+      debugPrint('[PrinterService] latin build failed too: $e');
+    } finally {
+      ReceiptBuilder.latinize = _config.printerLatin;
+    }
+    return ReceiptBuilder.buildMinimal(data);
+  }
+
   /// QR to'lov talonini bosадi (fiskal emas) — WLCM checkout QR'i.
   Future<PrintReport> printQrSlip({
     required String url,
     required num amount,
     int paperWidth = 80,
   }) async {
+    ReceiptBuilder.latinize = _config.printerLatin;
     final bytes = await ReceiptBuilder.buildQrSlip(
         url: url, amount: amount, paperWidth: paperWidth);
     if (_config.printerUsb) return _sendLocal(bytes);
@@ -81,6 +104,8 @@ class PrinterService {
 
   /// Z-HISOBOT chekini chiqaradi (smena yopilganda).
   Future<PrintReport> printZReport(List<int> bytes) async {
+    // Z baytlari chaqiruvchida yig'iladi — bayroq u yerda ham ta'sir qilishi
+    // uchun ekranlar yig'ishdan oldin `preparePrinter()` chaqiradi.
     if (_config.printerUsb) return _sendLocal(bytes);
     final host = _config.printerHost;
     if (host != null && host.isNotEmpty) return _sendNetwork(host, bytes);
@@ -92,7 +117,14 @@ class PrinterService {
   }
 
   /// Prints a short hardware test ticket through the configured transport.
+  /// Chaqiruvchi (smena ekrani) Z/Sotilganlar baytlarini yig'ishdan oldin
+  /// chaqiradi — kirill→lotin sozlamasi u cheklarga ham tegishli.
+  void preparePrinter() {
+    ReceiptBuilder.latinize = _config.printerLatin;
+  }
+
   Future<PrintReport> printTest() async {
+    ReceiptBuilder.latinize = _config.printerLatin;
     final bytes = await ReceiptBuilder.buildTest(paperWidth: 80);
     if (_config.printerUsb) return _sendLocal(bytes);
     final host = _config.printerHost;
