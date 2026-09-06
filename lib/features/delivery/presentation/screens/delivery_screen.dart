@@ -340,9 +340,27 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Buyurtmalar yig\'ish',
-            style: TextStyle(
-                color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600)),
+        Row(children: [
+          const Text('Buyurtmalar yig\'ish',
+              style: TextStyle(
+                  color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600)),
+          // Server bilan aloqa yo'q — ro'yxat oxirgi muvaffaqiyatli
+          // yuklanganicha turadi; kassir buni ko'rishi kerak, aks holda
+          // «yangi buyurtma kelmayapti» deb o'ylaydi.
+          if (ref.watch(deliveryProvider.select((s) => s.offline))) ...[
+            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: _red.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text('OFLAYN — ro\'yxat eskirgan bo\'lishi mumkin',
+                  style: TextStyle(
+                      color: _red, fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ]),
         const SizedBox(height: 8),
         const Text('Buyurtmalarni tez va qulay boshqaring',
             style: TextStyle(color: _w42, fontSize: 14)),

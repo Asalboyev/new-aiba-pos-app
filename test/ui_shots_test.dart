@@ -375,6 +375,9 @@ void main() {
 
   // OQ FON (Figma light) — avatar menyusidagi «Oq fon» tanlangan holat.
   testWidgets('08b oshpaz — oshxona ekrani OQ fon', (t) async {
+    // `set(true)` tanlovni UMUMIY mock-prefs'ga yozadi — keyingi oshxona
+    // testlari (09) oq fonda chiqib goldeniga mos kelmay qolardi.
+    addTearDown(() => _prefs!.remove('kitchen_light'));
     await _shot(t, '08b_oshpaz_light', _tablet, const KitchenScreen(),
         overrides: [
           ..._base(role: 'kitchen', name: 'Oshpaz Ali'),

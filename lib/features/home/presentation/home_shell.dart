@@ -207,7 +207,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             // ham yangi buyurtma kelganini payqaydi. Ro'yxatning o'zi
             // server oqimi (SSE) bilan yangilanadi, ya'ni bu hisob ham
             // darhol o'zgaradi.
-            final pending = ref.watch(deliveryProvider).counts['yangi'] ?? 0;
+            // select: faqat shu son o'zgarsa qobiq qayta chiziladi (har 10 s
+            // poll'da butun HomeShell rebuild bo'lmasin).
+            final pending = ref.watch(
+                deliveryProvider.select((s) => s.counts['yangi'] ?? 0));
             final rail = PosNavRail(
               selectedIndex: _index,
               onSelect: (i) => setState(() => _index = i),

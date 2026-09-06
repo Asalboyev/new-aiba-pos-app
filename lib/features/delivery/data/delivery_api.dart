@@ -22,6 +22,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/core_providers.dart';
+import '../../auth/presentation/providers/auth_providers.dart';
 
 /// Kanban ustunlari — serverdagi `stage` bilan bir xil so'zlar.
 enum DStage { yangi, jarayonda, tayyor, yolda, yetkazilgan, bekor }
@@ -189,7 +190,23 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
     // Asosiy yo'l — server oqimi (SSE): buyurtma kelishi bilan xabar
     // keladi. Poll esa QO'SHIMCHA himoya: oqim uzilgan yoki proksi uni
     // bloklagan holatda ham ro'yxat yangilanib turadi.
-    _poll = Timer.periodic(const Duration(seconds: 10), (_) => load(silent: true));
+    _poll = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (_loggedIn) load(silent: true);
+    });
+    // Chiqish/kirish: chiqilganda oqim yopiladi (eski token bilan ochiq
+    // qolmasin, login ekranida 401 bilan urib turmasin); kirilganda darhol
+    // qayta ulanadi va ro'yxat yangilanadi.
+    _ref.listen(sessionProvider, (prev, next) {
+      if (next == null) {
+        _dropStream();
+        _retry?.cancel();
+      } else if (prev == null) {
+        _tries = 0;
+        _retry?.cancel();
+        _connect();
+        load(silent: true);
+      }
+    });
     _connect();
     load();
   }
@@ -198,14 +215,35 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
   Timer? _poll;
   StreamSubscription<Uint8List>? _sse;
   Timer? _retry;
+  Timer? _watchdog;
   int _tries = 0;
   bool _closed = false;
+  bool _connecting = false;
   static const _base = '/api/v2/pos-terminal/delivery';
+
+  /// Server oqimda vaqti-vaqti bilan «ping» yuboradi. Shu muddat ichida
+  /// hech narsa kelmasa ulanish jimgina o'lgan (Wi-Fi almashgan, NAT
+  /// uzgan) — onDone/onError kelmaydi, faqat poll qoladi. Qayta ulaymiz.
+  static const _watchdogAfter = Duration(seconds: 90);
+
+  bool get _loggedIn => _ref.read(sessionProvider) != null;
+
+  void _armWatchdog() {
+    _watchdog?.cancel();
+    _watchdog = Timer(_watchdogAfter, _reconnect);
+  }
+
+  void _dropStream() {
+    _watchdog?.cancel();
+    _sse?.cancel();
+    _sse = null;
+  }
 
   /// Serverning jonli oqimiga ulanish. Uzilsa o'sib boruvchi kechikish
   /// bilan qayta urinadi (2, 4, 8… 30 s) — tarmoq tiklanganda o'zi qaytadi.
   Future<void> _connect() async {
-    if (_closed) return;
+    if (_closed || _connecting || _sse != null || !_loggedIn) return;
+    _connecting = true;
     try {
       // `raw` — interceptor'lari bilan bir xil Dio (token o'zi qo'shiladi);
       // oqim uchun `options` kerak, o'ram esa uni qabul qilmaydi.
@@ -219,8 +257,10 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
             ),
           );
       _tries = 0;
+      if (_closed) return;
       _sse = res.data?.stream.listen(
         (chunk) {
+          _armWatchdog();
           // Oqimda ikki xil narsa keladi: «changed» hodisasi va tirikchilik
           // uchun izoh («ping»). Faqat birinchisi ro'yxatni yangilaydi.
           if (utf8.decode(chunk, allowMalformed: true).contains('changed')) {
@@ -231,15 +271,19 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
         onDone: _reconnect,
         cancelOnError: true,
       );
+      _armWatchdog();
     } catch (_) {
       _reconnect();
+    } finally {
+      _connecting = false;
     }
   }
 
   void _reconnect() {
     if (_closed) return;
-    _sse?.cancel();
-    _sse = null;
+    _dropStream();
+    // Chiqib ketilgan — kirilganda sessiya kuzatuvchisi o'zi ulaydi.
+    if (!_loggedIn) return;
     _tries = _tries < 5 ? _tries + 1 : 5;
     _retry?.cancel();
     _retry = Timer(Duration(seconds: [2, 4, 8, 15, 30, 30][_tries - 1]), _connect);
@@ -250,11 +294,12 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
     _closed = true;
     _poll?.cancel();
     _retry?.cancel();
-    _sse?.cancel();
+    _dropStream();
     super.dispose();
   }
 
   Future<void> load({bool silent = false}) async {
+    if (!_loggedIn) return;
     if (!silent) state = state.copyWith(loading: true);
     try {
       final res = await _ref
@@ -267,10 +312,12 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
       ((res.data?['counts'] as Map?) ?? const {}).forEach((k, v) {
         counts[k as String] = ((v ?? 0) as num).round();
       });
+      if (!mounted) return;
       state = DeliveryState(orders: items, counts: counts, loading: false);
     } catch (e) {
       // Internet uzilsa oxirgi ro'yxat ekranda QOLADI — kassir buyurtmani
       // ko'rib turishi kerak, bo'sh ekran eng yomon holat.
+      if (!mounted) return;
       state = state.copyWith(loading: false, offline: true);
     }
   }

@@ -73,17 +73,25 @@ class SyncService extends StateNotifier<SyncState> {
     if (state.syncing) return;
     state = state.copyWith(syncing: true, message: 'Sinxronlash...');
     try {
+      // Stop-list va ommaboplik prefs'ga yoziladi (menu repository) —
+      // sinxrondan oldingi qiymat bilan solishtirib, FAQAT o'zgargan
+      // bo'lsa provayderlar bekor qilinadi. Aks holda mahsulot grid'i har
+      // 60 soniyada hech narsa o'zgarmasa ham to'liq qayta terilardi.
+      final prefs = _ref.read(sharedPreferencesProvider);
+      final kitchen0 = prefs.getString('menu_kitchen');
+      final pop0 = prefs.getString('menu_popularity');
       final menuOk = await _ref.read(menuRepositoryProvider).refreshFromServer();
       if (menuOk) {
         _ref.invalidate(categoriesProvider);
       }
-      // Stop-list menyudan mustaqil o'zgaradi (taom tugadi/qaytadi) —
-      // shuning uchun mahsulotlar ro'yxati HAR sinxronda qayta teriladi.
-      _ref.invalidate(kitchenFlagsProvider);
-      _ref.invalidate(productsProvider);
-      // Ommaboplik xaritasi har sync'da yangilanadi (menyu o'zgarmasa ham
-      // savdo tartibi o'zgargan bo'lishi mumkin) — grid qayta teriladi.
-      _ref.invalidate(popularityProvider);
+      // Stop-list menyudan mustaqil o'zgaradi (taom tugadi/qaytadi).
+      if (menuOk || prefs.getString('menu_kitchen') != kitchen0) {
+        _ref.invalidate(kitchenFlagsProvider);
+        _ref.invalidate(productsProvider);
+      }
+      if (prefs.getString('menu_popularity') != pop0) {
+        _ref.invalidate(popularityProvider);
+      }
       // Adminka chek sozlamalarini o'zgartirgan bo'lishi mumkin — cache'ni
       // yangilaymiz. Sinxronlash tugmasi bilan qo'lda ham chaqirsa bo'ladi.
       await _ref.read(sessionProvider.notifier).refreshRestaurant();

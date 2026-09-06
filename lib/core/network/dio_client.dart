@@ -148,8 +148,19 @@ class DioClient {
     }
   }
 
+  /// Serverning o'zbekcha xato matni. FastAPI `{"detail": ...}`, Rust/axum
+  /// esa ko'pincha `{"error": ...}` yoki `{"message": ...}` qaytaradi —
+  /// uchalasi ham tekshiriladi, aks holda kassir «Server xatosi (400)»
+  /// ko'rib sababni bilmasdi.
   String? _extractDetail(dynamic data) {
-    if (data is Map && data['detail'] != null) return data['detail'].toString();
+    if (data is! Map) return null;
+    for (final k in const ['detail', 'message', 'error']) {
+      final v = data[k];
+      if (v == null) continue;
+      if (v is Map) return _extractDetail(v);
+      final s = v.toString().trim();
+      if (s.isNotEmpty) return s;
+    }
     return null;
   }
 }

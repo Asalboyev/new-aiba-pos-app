@@ -129,8 +129,11 @@ class KitchenState {
       );
 }
 
-final kitchenProvider =
-    StateNotifierProvider<KitchenNotifier, KitchenState>((ref) => KitchenNotifier(ref));
+/// autoDispose: oshpaz chiqib ketganda (ekran yopilganda) 5 soniyalik poll
+/// ham to'xtaydi — aks holda kassir kirgandan keyin ham fonda umr bo'yi
+/// /kitchen/board so'rovi (401 bilan) ketib turardi.
+final kitchenProvider = StateNotifierProvider.autoDispose<KitchenNotifier, KitchenState>(
+    (ref) => KitchenNotifier(ref));
 
 class KitchenNotifier extends StateNotifier<KitchenState> {
   KitchenNotifier(this._ref) : super(const KitchenState()) {
@@ -165,8 +168,13 @@ class KitchenNotifier extends StateNotifier<KitchenState> {
             '/api/v2/pos-terminal/kitchen/board',
             query: _version == null ? null : {'version': _version},
           );
+      if (!mounted) return;
       if (res.data?['unchanged'] == true) {
-        state = state.copyWith(loading: false, offline: false);
+        // Hech narsa o'zgarmagan — state ham yangilanmaydi, aks holda har
+        // 5 soniyada butun ekran (grid, rasmlar) bekorga qayta chizilardi.
+        if (state.loading || state.offline) {
+          state = state.copyWith(loading: false, offline: false);
+        }
         await flushQueue();
         return;
       }
@@ -195,12 +203,14 @@ class KitchenNotifier extends StateNotifier<KitchenState> {
       await prefs.setString(_cacheKey, jsonEncode([for (final d in dishes) d.toJson()]));
       // Hali yuborilmagan mahalliy kirimlar sonlarga qo'shib ko'rsatiladi —
       // oshpaz oflaynda ham to'g'ri qoldiqni ko'radi.
-      dishes = _applyQueue(dishes, await _queue(prefs));
+      final queue = await _queue(prefs);
+      dishes = _applyQueue(dishes, queue);
+      if (!mounted) return;
       state = state.copyWith(
         dishes: dishes,
         loading: false,
         offline: false,
-        pendingCount: (await _queue(prefs)).length,
+        pendingCount: queue.length,
       );
       await flushQueue();
     } catch (e) {
@@ -220,6 +230,7 @@ class KitchenNotifier extends StateNotifier<KitchenState> {
             .toList();
         dishes = _applyQueue(dishes, await _queue(prefs));
       }
+      if (!mounted) return;
       state = state.copyWith(
         dishes: dishes,
         loading: false,
@@ -271,11 +282,13 @@ class KitchenNotifier extends StateNotifier<KitchenState> {
       final q = await _queue(prefs);
       q.add(body);
       await prefs.setString(_queueKey, jsonEncode(q));
-      state = state.copyWith(
-        dishes: _applyQueue([...state.dishes], [body]),
-        offline: true,
-        pendingCount: q.length,
-      );
+      if (mounted) {
+        state = state.copyWith(
+          dishes: _applyQueue([...state.dishes], [body]),
+          offline: true,
+          pendingCount: q.length,
+        );
+      }
       return false;
     }
   }
