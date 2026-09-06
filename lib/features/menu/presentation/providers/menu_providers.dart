@@ -49,15 +49,17 @@ final productsProvider = FutureProvider<List<Product>>((ref) async {
   final list = await ref.watch(menuRepositoryProvider).cachedProducts();
   final kitchen = await ref.watch(kitchenFlagsProvider.future);
   if (kitchen.isEmpty) return list;
+  // `stopped` — server «sotma» dedi (oshpaz STOP bosgan yoki qattiq rejimda
+  // 0 porsiya) → karta bloklanadi. Aks holda 0 porsiya faqat ma'lumot:
+  // trackStock yoqilmaydi, karta bosiladi (oshxona hali tayyorlovni yozmagan
+  // bo'lishi mumkin — savdo to'xtamasin).
   return [
     for (final p in list)
       switch (kitchen[p.id]) {
-        final Map k => p.copyWithStock(
-            trackStock: true,
-            stockQty: k['stopped'] == true
-                ? 0
-                : ((k['qty'] ?? 0) as num),
-          ),
+        final Map k when k['stopped'] == true => p.copyWithStock(trackStock: true, stockQty: 0),
+        final Map k => (((k['qty'] ?? 0) as num) > 0)
+            ? p.copyWithStock(trackStock: true, stockQty: (k['qty'] ?? 0) as num)
+            : p,
         _ => p,
       },
   ];
