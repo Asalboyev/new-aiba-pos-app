@@ -624,6 +624,7 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
       showMxik: useFresh ? freshR.receiptShowMxik : receipt.showMxik,
       paperWidth: useFresh ? freshR.receiptPaperWidth : receipt.paperWidth,
       logoBytes: logoBytes,
+      logoSize: useFresh ? freshR.receiptLogoSize : 100,
     );
     final report =
         await ref.read(printerServiceProvider).printReceipt(freshReceipt);

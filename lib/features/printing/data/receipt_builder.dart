@@ -293,37 +293,26 @@ class ReceiptBuilder {
     }
 
     // ── Sarlavha ──────────────────────────────────────────────────────────────
+    // LOGOTIP bo'lsa tepada FAQAT U chiqadi (nom, ООО, INN, manzil pastga —
+    // chek tepasi toza va ixcham). Logotip kengligi adminkadan (30–100 %).
+    var hasLogo = false;
     if (data.logoBytes != null && data.logoBytes!.isNotEmpty) {
       try {
         final decoded = img.decodeImage(data.logoBytes!);
         if (decoded != null) {
-          final maxW = data.paperWidth == 58 ? 300 : 480;
+          final full = data.paperWidth == 58 ? 300 : 480;
+          final maxW = (full * data.logoSize.clamp(30, 100) / 100).round().clamp(80, full);
           final resized =
               decoded.width > maxW ? img.copyResize(decoded, width: maxW) : decoded;
           bytes.addAll(g.image(resized, align: PosAlign.center));
+          hasLogo = true;
         }
       } catch (_) {
         // Rasm buzuq bo'lsa jimgina o'tkazamiz — matn hech qursa chiqsin.
       }
     }
-
-    bytes.addAll(_tx(g, data.restaurantName, styles: _title));
-    if ((data.legalName ?? '').isNotEmpty && data.legalName != data.restaurantName) {
-      bytes.addAll(_tx(g, data.legalName!, styles: _center));
-    }
-    // INN va telefon BIR qatorda (sig'sa) — sarlavha 1 qator qisqaradi.
-    final innTxt = (data.inn ?? '').isNotEmpty ? 'INN: ${data.inn}' : '';
-    final telTxt = (data.phone ?? '').isNotEmpty ? 'Tel: ${data.phone}' : '';
-    if (innTxt.isNotEmpty && telTxt.isNotEmpty && innTxt.length + telTxt.length + 3 <= cols) {
-      bytes.addAll(_tx(g, '$innTxt | $telTxt', styles: _center));
-    } else {
-      if (innTxt.isNotEmpty) bytes.addAll(_tx(g, innTxt, styles: _center));
-      if (telTxt.isNotEmpty) bytes.addAll(_tx(g, telTxt, styles: _center));
-    }
-    if ((data.address ?? '').isNotEmpty) {
-      for (final l in _wrap(data.address!, cols)) {
-        bytes.addAll(_tx(g, l, styles: _center));
-      }
+    if (!hasLogo) {
+      bytes.addAll(_tx(g, data.restaurantName, styles: _title));
     }
     if ((data.header ?? '').isNotEmpty) {
       bytes.addAll(_tx(g, data.header!, styles: _centerBold));
@@ -433,8 +422,30 @@ class ReceiptBuilder {
           _tx(g, 'Fiskalizatsiya: ${data.fiscal!.status}', styles: _center));
     }
 
+    // ── Rekvizitlar (chek OXIRIDA) ────────────────────────────────────────
+    // Nomi/ООО/INN/manzil/telefon shu yerda — tepada logotip turadi.
+    bytes.addAll(g.feed(1));
+    if (hasLogo) {
+      bytes.addAll(_tx(g, data.restaurantName, styles: _centerBold));
+    }
+    if ((data.legalName ?? '').isNotEmpty && data.legalName != data.restaurantName) {
+      bytes.addAll(_tx(g, data.legalName!, styles: _small));
+    }
+    final innTxt2 = (data.inn ?? '').isNotEmpty ? 'INN: ${data.inn}' : '';
+    final telTxt2 = (data.phone ?? '').isNotEmpty ? 'Tel: ${data.phone}' : '';
+    if (innTxt2.isNotEmpty && telTxt2.isNotEmpty &&
+        innTxt2.length + telTxt2.length + 3 <= cols) {
+      bytes.addAll(_tx(g, '$innTxt2 | $telTxt2', styles: _small));
+    } else {
+      if (innTxt2.isNotEmpty) bytes.addAll(_tx(g, innTxt2, styles: _small));
+      if (telTxt2.isNotEmpty) bytes.addAll(_tx(g, telTxt2, styles: _small));
+    }
+    if ((data.address ?? '').isNotEmpty) {
+      for (final l in _wrap(data.address!, cols)) {
+        bytes.addAll(_tx(g, l, styles: _small));
+      }
+    }
     if ((data.footer ?? '').isNotEmpty) {
-      bytes.addAll(g.feed(1));
       bytes.addAll(_tx(g, data.footer!, styles: _centerBold));
     }
     bytes.addAll(g.cut());

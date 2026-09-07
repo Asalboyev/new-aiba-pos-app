@@ -27,6 +27,8 @@ class ReceiptData {
   /// Yuklab olingan logo faylining xom baytlari (PNG/JPG/WebP).
   /// Chek chop etishdan oldin printer-service uni yuklaydi.
   final List<int>? logoBytes;
+  /// Logotip kengligi — qog'oz kengligidan foiz (30..100). Adminka sozlamasi.
+  final int logoSize;
 
   /// Chek XATO deb belgilangan bo'lsa — chekning boshida katta
   /// "XATO CHEK №13" banneri chiqadi (tekshiruvchi darhol ko'radi).
@@ -65,6 +67,7 @@ class ReceiptData {
     this.showMxik = true,
     this.paperWidth = 80,
     this.logoBytes,
+    this.logoSize = 100,
     this.paymentQrUrl,
     this.isErrorCheck = false,
     this.errorReason,
@@ -92,6 +95,7 @@ class ReceiptData {
         showMxik: showMxik,
         paperWidth: paperWidth,
         logoBytes: logoBytes ?? this.logoBytes,
+        logoSize: logoSize,
         paymentQrUrl: paymentQrUrl,
         isErrorCheck: isErrorCheck,
         errorReason: errorReason,

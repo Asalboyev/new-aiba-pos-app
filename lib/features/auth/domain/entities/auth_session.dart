@@ -22,6 +22,8 @@ class RestaurantInfo extends Equatable {
   /// Z-chekda; 'day' — faqat kun oxirida (restoranda oxirgi smena yopilganda)
   /// alohida chek; 'none' — chiqmaydi. Adminka → Sozlamalar → Chek.
   final String receiptSoldReport;
+  /// Chek logotipi kengligi (qog'oz kengligidan %, 30..100).
+  final int receiptLogoSize;
   /// Restoran fiskal rejimi (mock / epos / epos_terminal). epos_terminal
   /// bo'lsa internet uzilganda chek lokal Communicator orqali fiskalizatsiya
   /// qilinadi (oflayn fiskal).
@@ -43,6 +45,7 @@ class RestaurantInfo extends Equatable {
     this.receiptShowMxik = true,
     this.receiptPaperWidth = 80,
     this.receiptSoldReport = 'shift',
+    this.receiptLogoSize = 100,
     this.fiscalProvider,
   });
 
@@ -65,6 +68,7 @@ class RestaurantInfo extends Equatable {
         receiptShowMxik,
         receiptPaperWidth,
         receiptSoldReport,
+        receiptLogoSize,
         fiscalProvider,
       ];
 }
