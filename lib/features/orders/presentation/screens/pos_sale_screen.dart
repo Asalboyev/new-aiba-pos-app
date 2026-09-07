@@ -797,21 +797,25 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
     // Shtrix-kod → SKU → MXIK (scan_match.dart). Ilgari faqat SKU'ga
     // qaralardi: skaner EAN'ni o'qisa, SKU esa «вод1,5» — hech qachon
     // topilmasdi va kassir «Mahsulot topilmadi» ko'rardi.
+    final isMark = looksLikeMarkingCode(code);
     var hit = matchScan(all, code);
     if (hit == null) {
       // Kod bazada yo'q — kassir mahsulotni tanlaydi, kod biriktiriladi
       // (keyingi safar hamma kassada o'zi topiladi).
-      hit = await AssignBarcodeDialog.show(context, normalizeScan(code));
+      hit = await AssignBarcodeDialog.show(context, normalizeScan(code),
+          allowMarked: isMark);
       if (hit == null || !context.mounted) return;
     }
-    // Markirovkali mahsulotga skanerlangan DataMatrix kod label sifatida
-    // biriktiriladi (soliqqa shu kod ketadi) va mahsulot AVTOMATIK savatga
-    // tushadi — bunday mahsulotlar menyuda ko'rinmaydi.
-    ref.read(cartProvider.notifier).addProduct(hit,
-        label: hit.markingRequired ? code : null);
+    // Skanerlangan DataMatrix kod label sifatida biriktiriladi (soliqqa shu
+    // kod ketadi) va mahsulot AVTOMATIK savatga tushadi. Kod markirovka
+    // ko'rinishida bo'lsa — mahsulotda «markirovka» belgisi qo'yilmagan
+    // bo'lsa ham label saqlanadi: admin belgilashni unutgani chekni
+    // markirovkasiz qoldirmasin.
+    final withLabel = hit.markingRequired || isMark;
+    ref.read(cartProvider.notifier).addProduct(hit, label: withLabel ? code : null);
     if (context.mounted) {
       _toast(context,
-          '✓ ${hit.name} savatga qo\'shildi${hit.markingRequired ? ' (markirovka)' : ''}');
+          '✓ ${hit.name} savatga qo\'shildi${withLabel ? ' (markirovka)' : ''}');
     }
   }
 

@@ -37,4 +37,12 @@ void main() {
     expect(looksLikeMarkingCode('0105449000000996' '21ABC123XYZ'), isTrue);
     expect(looksLikeMarkingCode('5449000000996'), isFalse);
   });
+
+  test('to\'liq DataMatrix (seriya + GS + kripto) → GTIN bo\'yicha topiladi', () {
+    const dm = '0105449000000996' '215Yqd3T' '\u001d' '93EE06';
+    expect(looksLikeMarkingCode(dm), isTrue);
+    expect(matchScan(all, dm), cola);
+    // bo'shliqli/chiziqchali variant ham
+    expect(matchScan(all, '01 05449000000996 21 5Yqd3T'), cola);
+  });
 }

@@ -12,13 +12,19 @@ import '../providers/sync_service.dart';
 /// mahsulot savatga tushadi. Keyingi skanerlash o'zi topadi — barcha
 /// terminallarga sinxron orqali tarqaladi.
 class AssignBarcodeDialog extends ConsumerStatefulWidget {
-  const AssignBarcodeDialog({super.key, required this.code});
+  const AssignBarcodeDialog({super.key, required this.code, this.allowMarked = false});
   final String code;
 
-  static Future<Product?> show(BuildContext context, String code) =>
+  /// Markirovkali mahsulotlar odatda ro'yxatda ko'rsatilmaydi (ular menyudan
+  /// emas, skanerdan sotiladi). Ammo skanerlangan kod DataMatrix bo'lsa —
+  /// aynan markirovkali mahsulotni tanlash kerak.
+  final bool allowMarked;
+
+  static Future<Product?> show(BuildContext context, String code,
+          {bool allowMarked = false}) =>
       showDialog<Product>(
         context: context,
-        builder: (_) => AssignBarcodeDialog(code: code),
+        builder: (_) => AssignBarcodeDialog(code: code, allowMarked: allowMarked),
       );
 
   @override
@@ -59,7 +65,7 @@ class _AssignBarcodeDialogState extends ConsumerState<AssignBarcodeDialog> {
         );
     final q = _q.trim().toLowerCase();
     final list = all
-        .where((p) => p.isActive && !p.markingRequired)
+        .where((p) => p.isActive && (widget.allowMarked || !p.markingRequired))
         .where((p) => q.isEmpty ||
             p.name.toLowerCase().contains(q) ||
             (p.sku ?? '').toLowerCase().contains(q))
