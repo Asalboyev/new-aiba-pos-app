@@ -47,7 +47,7 @@ class DioClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          options.baseUrl = _config.baseUrl;
+          options.baseUrl = _activeBase();
           final noAuth = options.extra['noAuth'] == true;
           if (!noAuth) {
             final token = await _config.getToken();
@@ -63,6 +63,46 @@ class DioClient {
 
   final Dio _dio;
   final AppConfig _config;
+
+  /// KASSA KOMPYUTERIDAGI LOKAL SERVER manzili — QO'LDA kiritilmaydi.
+  /// Kassa o'z manzilini bulutga e'lon qiladi, oshxona esa uni doska
+  /// javobidagi `lan` maydonidan olib shu yerga yozadi. Internet uzilganda
+  /// so'rovlar o'sha manzilga o'tadi; bulut qaytishi bilan yana bulutga.
+  static String? lanBase;
+
+  /// Faqat restoran tarmog'idagi manzil qabul qilinadi — begona havola
+  /// oshxonani chetdagi serverga yo'naltirmasin.
+  static void rememberLan(Object? value) {
+    final v = value is String ? value.trim() : '';
+    if (v.isEmpty || !v.startsWith('http://')) return;
+    final host = v.substring(7).split(':').first;
+    final o = host.split('.').map(int.tryParse).toList();
+    if (o.length != 4 || o.any((x) => x == null || x < 0 || x > 255)) return;
+    final private = o[0] == 10 ||
+        (o[0] == 192 && o[1] == 168) ||
+        (o[0] == 172 && o[1]! >= 16 && o[1]! <= 31);
+    if (private) lanBase = v.replaceAll(RegExp(r'/+$'), '');
+  }
+
+  /// Lokal serverga o'tilgan vaqt oynasi: bulut javob bermagach 2 daqiqa
+  /// lokaldan ishlaymiz, keyin bulut qayta sinaladi.
+  DateTime? _lanUntil;
+  static const _lanWindow = Duration(minutes: 2);
+
+  bool get onLan => _lanUntil != null && DateTime.now().isBefore(_lanUntil!);
+
+  String _activeBase() {
+    final lan = lanBase;
+    if (lan != null && lan.isNotEmpty && onLan) return lan;
+    return _config.baseUrl;
+  }
+
+  /// Tarmoq xatosi — bulut yo'q (internet uzilgan yoki server o'chiq).
+  static bool _isNetworkDown(DioException e) =>
+      e.type == DioExceptionType.connectionError ||
+      e.type == DioExceptionType.connectionTimeout ||
+      e.type == DioExceptionType.receiveTimeout ||
+      e.type == DioExceptionType.sendTimeout;
 
   /// Fired when an *authenticated* request comes back 401 — i.e. the stored
   /// token is expired/invalid and the user must log in again.
@@ -113,8 +153,23 @@ class DioClient {
 
   Future<Response<T>> _wrap<T>(Future<Response<T>> Function() run) async {
     try {
-      return await run();
+      final res = await run();
+      if (_lanUntil != null && !onLan) _lanUntil = null; // bulut qaytdi
+      return res;
     } on DioException catch (e) {
+      // BULUT YO'Q + kassa manzili ma'lum → o'sha so'rovni LOKAL server
+      // orqali takrorlaymiz (bitta Wi-Fi'da hammasi ishlashda davom etadi).
+      final lan = lanBase;
+      if (_isNetworkDown(e) && lan != null && lan.isNotEmpty && !onLan) {
+        _lanUntil = DateTime.now().add(_lanWindow);
+        try {
+          return await run();
+        } on DioException catch (e2) {
+          _lanUntil = null;
+          throw _mapDioError(e2);
+        }
+      }
+      if (onLan && _isNetworkDown(e)) _lanUntil = null;
       throw _mapDioError(e);
     }
   }

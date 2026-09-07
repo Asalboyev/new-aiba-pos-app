@@ -22,6 +22,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../core/network/dio_client.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/providers/core_providers.dart';
@@ -169,6 +171,9 @@ class KitchenNotifier extends StateNotifier<KitchenState> {
             query: _version == null ? null : {'version': _version},
           );
       if (!mounted) return;
+      // Kassa kompyuterining tarmoqdagi manzili — internet uzilganda
+      // so'rovlar o'sha yerga o'zi o'tadi (qo'lda hech narsa kiritilmaydi).
+      DioClient.rememberLan(res.data?['lan']);
       if (res.data?['unchanged'] == true) {
         // Hech narsa o'zgarmagan — state ham yangilanmaydi, aks holda har
         // 5 soniyada butun ekran (grid, rasmlar) bekorga qayta chizilardi.

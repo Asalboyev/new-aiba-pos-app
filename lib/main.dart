@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'dart:io' show Platform;
+
+import 'core/lan/lan_service.dart';
 import 'core/network/dio_client.dart' show loadBundledRoots;
 import 'core/providers/core_providers.dart';
 import 'core/theme/app_theme.dart';
@@ -69,6 +72,19 @@ class _AibaPosAppState extends ConsumerState<AibaPosApp> {
 
     // Token expired on the server (401) — drop the cached session so the app
     // routes back to the login screen instead of queueing forever "offline".
+    // LOKAL SERVER — kassa kompyuterida (Windows) ochiladi: internet
+    // uzilganda oshxona planshet va TV shu kompyuterdan ishlashda davom
+    // etadi. Oshpaz planshetida ochilmaydi (u mijoz, server emas).
+    ref.listen(sessionProvider, (prev, next) {
+      if (!Platform.isWindows) return;
+      final lan = ref.read(lanServiceProvider);
+      if (next != null && next.staff.role != 'kitchen') {
+        lan.start();
+      } else if (next == null) {
+        lan.stop();
+      }
+    });
+
     ref.listen<int>(sessionExpiredSignalProvider, (prev, next) {
       if (ref.read(sessionProvider) == null) return;
       ref.read(sessionProvider.notifier).logout();

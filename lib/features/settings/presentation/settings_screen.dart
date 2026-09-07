@@ -1,10 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../core/config/app_config.dart';
+import '../../../core/lan/lan_service.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/widgets/app_background.dart';
 import '../../printing/data/printer_service.dart';
@@ -330,7 +332,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       iconAsset: 'assets/icons/set_home.svg',
       title: 'Backend',
       subtitle: 'Kompaniya va filial haqida asosiy ma\'lumotlar',
-      child: Row(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
@@ -363,6 +366,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ],
       ),
+      _lanRow(),
+      ]),
+    );
+  }
+
+  /// LOKAL SERVER — internet uzilganda oshxona va TV shu kompyuterdan
+  /// ishlaydi. Manzil qo'lda kiritilmaydi: kassa uni o'zi topadi. TV
+  /// brauzerida SHU manzil ochiladi (bir marta) — keyin internet bor-yo'qmi,
+  /// farqi yo'q.
+  Widget _lanRow() {
+    final url = ref.watch(lanUrlProvider);
+    if (url == null) return const SizedBox.shrink();
+    final tv = '$url/pos-tv';
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Row(children: [
+        const Icon(Icons.wifi_tethering, size: 18, color: Color(0xFF39B54A)),
+        const SizedBox(width: 10),
+        const Text('Oshxona TV manzili (shu tarmoqda):',
+            style: TextStyle(color: _muted, fontSize: 13)),
+        const SizedBox(width: 8),
+        SelectableText(tv,
+            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+        const SizedBox(width: 8),
+        IconButton(
+          tooltip: 'Nusxalash',
+          icon: const Icon(Icons.copy, size: 16, color: _muted),
+          onPressed: () async {
+            await Clipboard.setData(ClipboardData(text: tv));
+            if (!mounted) return;
+            ScaffoldMessenger.of(context)
+                .showSnackBar(const SnackBar(content: Text('Manzil nusxalandi')));
+          },
+        ),
+      ]),
     );
   }
 
