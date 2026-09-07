@@ -47,7 +47,7 @@ class DioClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          options.baseUrl = _activeBase();
+          options.baseUrl = _config.baseUrl;
           final noAuth = options.extra['noAuth'] == true;
           if (!noAuth) {
             final token = await _config.getToken();
@@ -63,28 +63,6 @@ class DioClient {
 
   final Dio _dio;
   final AppConfig _config;
-
-  /// LAN rejimi: bulut javob bermagach shu vaqtgacha zaxira serverga
-  /// (restoran ichidagi mini-PC) murojaat qilinadi, keyin bulut qayta
-  /// sinaladi. Shunda internet qaytganda o'zi bulutga qaytadi.
-  DateTime? _lanUntil;
-  static const _lanWindow = Duration(minutes: 2);
-
-  /// Hozir qaysi server ishlatilyapti (LAN rejimi yoqilganmi).
-  bool get onLan => _lanUntil != null && DateTime.now().isBefore(_lanUntil!);
-
-  String _activeBase() {
-    final lan = _config.lanUrl;
-    if (lan.isNotEmpty && onLan) return lan;
-    return _config.baseUrl;
-  }
-
-  /// Tarmoq xatosi — bulut yo'q (server o'chiq/internet uzilgan).
-  static bool _isNetworkDown(DioException e) =>
-      e.type == DioExceptionType.connectionError ||
-      e.type == DioExceptionType.connectionTimeout ||
-      e.type == DioExceptionType.receiveTimeout ||
-      e.type == DioExceptionType.sendTimeout;
 
   /// Fired when an *authenticated* request comes back 401 — i.e. the stored
   /// token is expired/invalid and the user must log in again.
@@ -135,25 +113,8 @@ class DioClient {
 
   Future<Response<T>> _wrap<T>(Future<Response<T>> Function() run) async {
     try {
-      final res = await run();
-      // Bulut javob berdi — LAN rejimidan chiqamiz.
-      if (_lanUntil != null && !onLan) _lanUntil = null;
-      return res;
+      return await run();
     } on DioException catch (e) {
-      // BULUT YO'Q + LAN server sozlangan → o'sha so'rovni LAN orqali
-      // takrorlaymiz. Muvaffaqiyatli bo'lsa keyingi 2 daqiqa LAN ishlaydi
-      // (TV va oshxona ham shu serverga qaraydi — bitta tarmoqda hammasi).
-      final lan = _config.lanUrl;
-      if (_isNetworkDown(e) && lan.isNotEmpty && !onLan) {
-        _lanUntil = DateTime.now().add(_lanWindow);
-        try {
-          return await run();
-        } on DioException catch (e2) {
-          _lanUntil = null;
-          throw _mapDioError(e2);
-        }
-      }
-      if (onLan && _isNetworkDown(e)) _lanUntil = null;
       throw _mapDioError(e);
     }
   }
