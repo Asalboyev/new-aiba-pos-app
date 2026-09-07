@@ -54,7 +54,9 @@ class SyncService extends StateNotifier<SyncState> {
     // Periodic safety-net: adminkada qilingan menyu o'zgarishlari (yangi
     // mahsulot, narx) terminalga qo'lda yangilashsiz yetib kelishi uchun.
     _periodic = Timer.periodic(const Duration(seconds: 60), (_) {
-      if (_ref.read(sessionProvider) != null) syncAll();
+      final s = _ref.read(sessionProvider);
+      // Oshpazda kassa sinxroni yo'q — u faqat oshxona doskasi bilan ishlaydi.
+      if (s != null && s.staff.role != 'kitchen') syncAll();
     });
   }
 

@@ -226,7 +226,13 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
   /// uzgan) — onDone/onError kelmaydi, faqat poll qoladi. Qayta ulaymiz.
   static const _watchdogAfter = Duration(seconds: 90);
 
-  bool get _loggedIn => _ref.read(sessionProvider) != null;
+  /// Oshpaz/ofitsiant kirgan bo'lsa yetkazish ro'yxati SO'RALMAYDI: server
+  /// bu amalni ularga bermaydi (403) va har 10 soniyada bekorga urinishdan
+  /// ma'no yo'q — oshxona ekranida yetkazish ko'rinmaydi ham.
+  bool get _loggedIn {
+    final s = _ref.read(sessionProvider);
+    return s != null && s.staff.role != 'kitchen';
+  }
 
   void _armWatchdog() {
     _watchdog?.cancel();

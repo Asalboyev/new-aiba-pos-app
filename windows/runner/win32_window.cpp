@@ -3,6 +3,8 @@
 #include <dwmapi.h>
 #include <flutter_windows.h>
 
+#include <cwchar>
+
 #include "resource.h"
 
 namespace {
@@ -111,6 +113,23 @@ void WindowClassRegistrar::UnregisterWindowClass() {
   class_registered_ = false;
 }
 
+// KIOSK — POS terminalining odatiy rejimi: sarlavha paneli va X tugmasi
+// bo'lmaydi, oyna butun ekranni egallaydi, Alt+F4 yopmaydi. Kassir
+// programmadan chiqib Windows'ga o'tib ketolmasin.
+// Ishlab chiqish uchun oddiy oyna: `aiba_pos_terminal.exe --window`
+// yoki AIBA_POS_WINDOW muhit o'zgaruvchisi.
+static bool KioskEnabled() {
+  const wchar_t* cmd = GetCommandLineW();
+  if (cmd != nullptr && wcsstr(cmd, L"--window") != nullptr) {
+    return false;
+  }
+  wchar_t buf[8];
+  if (GetEnvironmentVariableW(L"AIBA_POS_WINDOW", buf, 8) > 0) {
+    return false;
+  }
+  return true;
+}
+
 Win32Window::Win32Window() {
   ++g_active_window_count;
 }
@@ -134,10 +153,27 @@ bool Win32Window::Create(const std::wstring& title,
   UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
   double scale_factor = dpi / 96.0;
 
+  kiosk_ = KioskEnabled();
+  DWORD window_style = kiosk_ ? WS_POPUP : WS_OVERLAPPEDWINDOW;
+  int win_x = Scale(origin.x, scale_factor);
+  int win_y = Scale(origin.y, scale_factor);
+  int win_w = Scale(size.width, scale_factor);
+  int win_h = Scale(size.height, scale_factor);
+  if (kiosk_) {
+    // Monitor o'lchami — DPI'ga bog'liq emas (rcMonitor fizik piksellarda).
+    MONITORINFO mi;
+    mi.cbSize = sizeof(mi);
+    if (GetMonitorInfo(monitor, &mi)) {
+      win_x = mi.rcMonitor.left;
+      win_y = mi.rcMonitor.top;
+      win_w = mi.rcMonitor.right - mi.rcMonitor.left;
+      win_h = mi.rcMonitor.bottom - mi.rcMonitor.top;
+    }
+  }
+
   HWND window = CreateWindow(
-      window_class, title.c_str(), WS_OVERLAPPEDWINDOW,
-      Scale(origin.x, scale_factor), Scale(origin.y, scale_factor),
-      Scale(size.width, scale_factor), Scale(size.height, scale_factor),
+      window_class, title.c_str(), window_style,
+      win_x, win_y, win_w, win_h,
       nullptr, nullptr, GetModuleHandle(nullptr), this);
 
   if (!window) {
@@ -150,7 +186,7 @@ bool Win32Window::Create(const std::wstring& title,
 }
 
 bool Win32Window::Show() {
-  return ShowWindow(window_handle_, SW_SHOWNORMAL);
+  return ShowWindow(window_handle_, kiosk_ ? SW_SHOW : SW_SHOWNORMAL);
 }
 
 // static
@@ -216,6 +252,14 @@ Win32Window::MessageHandler(HWND hwnd,
     case WM_DWMCOLORIZATIONCOLORCHANGED:
       UpdateTheme(hwnd);
       return 0;
+
+    case WM_CLOSE:
+      // Kioskda X yo'q, Alt+F4 ham yopmaydi. Chiqish faqat ilova ichidan:
+      // Sozlamalar → «Programmadan chiqish» (menejer paroli bilan).
+      if (kiosk_) {
+        return 0;
+      }
+      break;
   }
 
   return DefWindowProc(window_handle_, message, wparam, lparam);

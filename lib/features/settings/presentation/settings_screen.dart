@@ -247,12 +247,53 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           fontSize: 30,
                           fontWeight: FontWeight.w700)),
                   SizedBox(height: 4),
-                  Text('Bistro POS tizimini sozlash · v1.0.2 (2026-09-07)',
+                  Text('Bistro POS tizimini sozlash · v1.0.3 (2026-09-07)',
                       style: TextStyle(color: _muted, fontSize: 15)),
                 ],
               ),
             ),
             _SaveButton(enabled: _dirty, onTap: _dirty ? _save : null),
+            // KIOSK: oynada X tugmasi yo'q (kassir programmani yopib
+            // qo'ymasin), shuning uchun chiqish shu yerda — Sozlamalarga
+            // faqat menejer kiradi.
+            if (Platform.isWindows) ...[
+              const SizedBox(width: 12),
+              Tooltip(
+                message: 'Programmadan chiqish (Windows)',
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final yes = await showDialog<bool>(
+                      context: context,
+                      builder: (c) => AlertDialog(
+                        backgroundColor: const Color(0xFF1C1D22),
+                        title: const Text('Programmadan chiqilsinmi?',
+                            style: TextStyle(color: Colors.white)),
+                        content: const Text(
+                            'Kassa yopiladi. Qayta ochish uchun ish stolidagi '
+                            'AIBA POS yorlig\'ini bosing.',
+                            style: TextStyle(color: _muted)),
+                        actions: [
+                          TextButton(
+                              onPressed: () => Navigator.pop(c, false),
+                              child: const Text('Bekor qilish')),
+                          FilledButton(
+                              onPressed: () => Navigator.pop(c, true),
+                              child: const Text('Chiqish')),
+                        ],
+                      ),
+                    );
+                    if (yes == true) exit(0);
+                  },
+                  icon: const Icon(Icons.power_settings_new, size: 18),
+                  label: const Text('Chiqish'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFFF6B6B),
+                    side: const BorderSide(color: Color(0x33FF6B6B)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
         const SizedBox(height: 24),

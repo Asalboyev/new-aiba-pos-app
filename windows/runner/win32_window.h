@@ -92,6 +92,9 @@ class Win32Window {
 
   bool quit_on_close_ = false;
 
+  // KIOSK rejimi: ramkasiz butun ekran, X/Alt+F4 ishlamaydi (POS terminal).
+  bool kiosk_ = false;
+
   // window handle for top level window.
   HWND window_handle_ = nullptr;
 
