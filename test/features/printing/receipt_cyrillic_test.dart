@@ -10,15 +10,30 @@ String _text(List<int> bytes) {
   final sb = StringBuffer();
   for (var i = 0; i < bytes.length; i++) {
     final b = bytes[i];
-    if (b == 0x1B) { i += (i + 1 < bytes.length && bytes[i + 1] == 0x40) ? 1 : 2; continue; }
+    if (b == 0x1B) {
+      i += (i + 1 < bytes.length && bytes[i + 1] == 0x40) ? 1 : 2;
+      continue;
+    }
     if (b == 0x1D) {
       final m = i + 1 < bytes.length ? bytes[i + 1] : 0;
-      if (m == 0x28) { final n = bytes[i + 2] + bytes[i + 3] * 256; i += 3 + n; continue; }
+      if (m == 0x28) {
+        final n = bytes[i + 2] + bytes[i + 3] * 256;
+        i += 3 + n;
+        continue;
+      }
       i += (m == 0x56 && i + 2 < bytes.length && bytes[i + 2] >= 0x41) ? 3 : 2;
       continue;
     }
-    if (b == 0x0A) { sb.write('\n'); continue; }
-    if (b >= 0x20 && b < 0x7F) sb.writeCharCode(b); else if (b >= 0x80) sb.write('Ø'); // CP866 kirill bayti
+    if (b == 0x0A) {
+      sb.write("\n");
+      continue;
+    }
+    // CP866 kirill baytlari «Ø» — kirill kod jadvali orqali ketganini ko'rish uchun
+    if (b >= 0x20 && b < 0x7F) {
+      sb.writeCharCode(b);
+    } else if (b >= 0x80) {
+      sb.write('Ø');
+    }
   }
   return sb.toString().replaceAll(RegExp(r'^\.', multiLine: true), '');
 }

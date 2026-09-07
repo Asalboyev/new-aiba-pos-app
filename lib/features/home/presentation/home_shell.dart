@@ -156,12 +156,20 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             ? null
             : 'Smenani menejer ochadi. Menejer smenani boshlagach savdo '
                 'avtomatik ochiladi.';
+        // Internet uzilganda (sync har 60 s smena holatini qayta so'raydi)
+        // OXIRGI MA'LUM holat saqlanadi (skipError/skipLoadingOnReload) —
+        // savdo ekrani «Qayta urinish» ga almashib qolmaydi. Ma'lum holat
+        // yo'q bo'lsa ham sessiyada smena bo'lsa savdo davom etadi (chek
+        // oflayn navbatga tushadi).
+        final sessionShift = ref.watch(sessionProvider.select((s) => s?.shiftId));
         return shiftAsync.when(
+          skipError: true,
+          skipLoadingOnReload: true,
           loading: () => const Center(child: CircularProgressIndicator()),
           // XATO (tarmoq/timeout) — bu «smena yo'q» degani EMAS.
-          // Shuning uchun qayta urinish tugmasi beriladi, aks holda
-          // kassir bir marta uzilish tufayli ishlay olmay qolardi.
-          error: (_, _) => _ShiftGuard(
+          error: (_, _) => sessionShift != null
+              ? (idx == 2 ? const DeliveryScreen() : const PosSaleScreen())
+              : _ShiftGuard(
             onStart: () => ref.invalidate(currentShiftProvider),
             startLabel: 'Qayta urinish',
             message: 'Smena holatini olib bo\'lmadi — internetni tekshirib '

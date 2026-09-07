@@ -10,6 +10,7 @@ import '../../../menu/domain/entities/category.dart';
 import '../../../menu/domain/entities/product.dart';
 import '../../../menu/presentation/providers/menu_providers.dart';
 import '../providers/cart_provider.dart';
+import '../../domain/scan_match.dart';
 import 'qty_dialog.dart';
 import 'scan_label_dialog.dart';
 
@@ -129,12 +130,27 @@ Future<void> _submitSearch(BuildContext context, WidgetRef ref,
           data: (p) => p,
           orElse: () => const <Product>[],
         );
+    // USB SKANER qidiruv maydoniga yozgan bo'lishi mumkin (8+ raqam = EAN/GTIN):
+    // bu MIQDOR EMAS — shtrix-kod bo'yicha mahsulot qo'shiladi. Aks holda
+    // oxirgi qator miqdori 4 780 000 000 000 bo'lib qolardi.
+    final digits = raw.replaceAll(RegExp(r'[^\d]'), '');
+    if (digits.length >= 8) {
+      final hit = matchScan(all0, raw);
+      if (hit != null) {
+        cart.addProduct(hit);
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Shtrix-kod topilmadi — F2 (skaner) orqali biriktiring')));
+      return;
+    }
     final hasExactSku =
         all0.any((p) => (p.sku ?? '').toLowerCase() == raw.toLowerCase());
     final items = ref.read(cartProvider).items;
     if (!hasExactSku && items.isNotEmpty) {
       final n = num.tryParse(raw.replaceAll(',', '.')) ?? 0;
-      if (n > 0) {
+      // Miqdor faqat oqilona chegarada (≤ 9999) — kod/xato terish miqdorga aylanmasin.
+      if (n > 0 && n <= 9999) {
         final i = items.length - 1;
         final last = items[i];
         // Og'irlik mahsulotida raqam GRAMM deb qabul qilinadi (500 → 0.5 kg).

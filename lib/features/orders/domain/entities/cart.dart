@@ -133,7 +133,9 @@ class Cart extends Equatable {
       final min = next[index].soldByWeight ? 0.001 : 1;
       next[index] = next[index].copyWith(qty: min);
     } else {
-      next[index] = next[index].copyWith(qty: qty);
+      // Yuqori chegara: 9999 — skaner/xato terish miqdorga aylanib qolsa
+      // savdo summasi milliardlarga chiqib ketmasin.
+      next[index] = next[index].copyWith(qty: qty > 9999 ? 9999 : qty);
     }
     return copyWith(items: next);
   }

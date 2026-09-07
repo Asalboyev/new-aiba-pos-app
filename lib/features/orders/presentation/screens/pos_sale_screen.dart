@@ -291,7 +291,26 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
     }
   }
 
+  // TO'LOV DAVOMIDA IKKINCHI BOSISH (F5/klik) — dublikat chek bo'lmasin:
+  // POST /orders 5–20 s ketishi mumkin, shu vaqtda savat hali tozalanmagan.
+  bool _checkoutBusy = false;
+
   Future<void> _checkout(
+      BuildContext context, WidgetRef ref, PaymentMethod method,
+      {bool qrScan = false}) async {
+    if (_checkoutBusy) {
+      _toast(context, 'To\'lov bajarilmoqda — kuting');
+      return;
+    }
+    _checkoutBusy = true;
+    try {
+      await _checkoutInner(context, ref, method, qrScan: qrScan);
+    } finally {
+      _checkoutBusy = false;
+    }
+  }
+
+  Future<void> _checkoutInner(
       BuildContext context, WidgetRef ref, PaymentMethod method,
       {bool qrScan = false}) async {
     final cart = ref.read(cartProvider);
