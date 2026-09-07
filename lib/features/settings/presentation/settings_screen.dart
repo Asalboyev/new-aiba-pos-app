@@ -42,6 +42,7 @@ const _label = Color(0xFF9AA0A6);
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final AppConfig _config;
   late final TextEditingController _baseUrl;
+  late final TextEditingController _lanUrl;
   late final TextEditingController _terminalCode;
   late final TextEditingController _tenantSlug;
   late final TextEditingController _printerHost;
@@ -59,6 +60,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     super.initState();
     _config = ref.read(appConfigProvider);
     _baseUrl = TextEditingController(text: _config.baseUrl);
+    _lanUrl = TextEditingController(text: _config.lanUrl);
     _terminalCode = TextEditingController(text: _config.terminalCode);
     _tenantSlug = TextEditingController(text: _config.tenantSlug);
     _printerHost = TextEditingController(text: _config.printerHost ?? '');
@@ -69,6 +71,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _printerLatin = _config.printerLatin;
     for (final c in [
       _baseUrl,
+      _lanUrl,
       _terminalCode,
       _printerHost,
       _printerPort,
@@ -86,6 +89,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   void dispose() {
     _baseUrl.dispose();
+    _lanUrl.dispose();
     _terminalCode.dispose();
     _tenantSlug.dispose();
     _printerHost.dispose();
@@ -97,6 +101,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _persist() async {
     await _config.setBaseUrl(_baseUrl.text);
+    await _config.setLanUrl(_lanUrl.text);
     await _config.setTerminalCode(_terminalCode.text);
     await _config.setTenantSlug(_tenantSlug.text);
     await _config.setPrinterHost(_printerHost.text);
@@ -307,6 +312,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               label: 'Terminal kodi',
               controller: _terminalCode,
               hint: 'T1',
+            ),
+          ),
+          const SizedBox(width: 16),
+          // ZAXIRA SERVER (LAN): internet uzilganda kassa, oshxona ekrani va
+          // TV restoran ichidagi serverga o'tadi — hammasi bitta tarmoqda
+          // ishlashda davom etadi. Bo'sh bo'lsa faqat bulut ishlatiladi
+          // (savdo baribir oflayn navbatga tushadi).
+          Expanded(
+            flex: 2,
+            child: _Field(
+              label: 'Zaxira server (LAN, ixtiyoriy)',
+              controller: _lanUrl,
+              hint: 'http://192.168.1.50:18001',
+              keyboardType: TextInputType.url,
             ),
           ),
           const SizedBox(width: 16),

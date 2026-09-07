@@ -12,6 +12,7 @@ class AppConfig {
   final FlutterSecureStorage _secure;
 
   static const _kBaseUrl = 'base_url';
+  static const _kLanUrl = 'lan_url';
   static const _kTerminalCode = 'terminal_code';
   static const _kTenantSlug = 'tenant_slug';
   static const _kPrinterHost = 'printer_host';
@@ -35,6 +36,20 @@ class AppConfig {
   static const defaultCommunicatorUrl = 'http://127.0.0.1:8347/uzpos';
 
   String get baseUrl => _fixLocalhost(_prefs.getString(_kBaseUrl) ?? defaultBaseUrl);
+
+  /// ZAXIRA SERVER (LAN) — restoran ichidagi mini-PC'dagi AIBA server
+  /// (masalan http://192.168.1.50:18001). Internet uzilganda kassa,
+  /// oshxona ekrani va TV shu manzil orqali BIR TARMOQDA ishlashda davom
+  /// etadi. Bo'sh bo'lsa — faqat bulut (oflayn navbat ishlaydi).
+  String get lanUrl => _fixLocalhost(_prefs.getString(_kLanUrl) ?? '');
+  Future<void> setLanUrl(String value) async {
+    final v = value.trim().replaceAll(RegExp(r'/+$'), '');
+    if (v.isEmpty) {
+      await _prefs.remove(_kLanUrl);
+    } else {
+      await _prefs.setString(_kLanUrl, v);
+    }
+  }
 
   /// `localhost` → `127.0.0.1`.
   ///
