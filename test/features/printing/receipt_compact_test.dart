@@ -108,6 +108,52 @@ void main() {
     expect(RegExp(r'\n{7,}').hasMatch(tail), isFalse);
   });
 
+  test('onlayn buyurtma cheki: kanal, raqam, mijoz va kuryer ko\'rinadi', () async {
+    final d = _data(const [
+      CartItem(name: 'Borsh', price: 27400, qty: 2),
+    ]);
+    final t = _text(await ReceiptBuilder.build(ReceiptData(
+      restaurantName: d.restaurantName,
+      terminalName: d.terminalName,
+      orderNumber: d.orderNumber,
+      items: d.items,
+      subtotal: d.subtotal,
+      discount: 0,
+      total: d.total,
+      payments: d.payments,
+      paperWidth: 80,
+      createdAt: d.createdAt,
+      delivery: const DeliveryInfo(
+        channelLabel: 'Uzum Tezkor',
+        orderNo: '167',
+        customer: 'Marsel',
+        phone: '+998001112201',
+        address: 'Toshkent, Chilonzor 5',
+        deliveryFee: 5000,
+        ownCourier: true,
+      ),
+    )));
+    expect(t.contains('UZUM TEZKOR'), isTrue);
+    // «№» — CP866 bayti, bu testdagi dekoder uni tashlab yuboradi,
+    // shuning uchun matn va raqam alohida tekshiriladi.
+    expect(t.contains('BUYURTMA'), isTrue);
+    expect(t.contains('167'), isTrue);
+    expect(t.contains('Marsel'), isTrue);
+    expect(t.contains('+998001112201'), isTrue);
+    expect(t.contains('Chilonzor 5'), isTrue);
+    expect(t.contains('Uzum Tezkor kuryeri olib ketadi'), isTrue);
+    expect(t.contains('Yetkazish'), isTrue);
+    expect(t.split('\n').any((l) => l.contains('Borsh') && l.contains('2x27 400')), isTrue);
+  });
+
+  test('oddiy (zaldagi) chekda dostavka bloki YO\'Q', () async {
+    final t = _text(await ReceiptBuilder.build(_data(const [
+      CartItem(name: 'Palov', price: 35000, qty: 1),
+    ])));
+    expect(t.contains('BUYURTMA №'), isFalse);
+    expect(t.contains('kuryer'), isFalse);
+  });
+
   test('Z-hisobot: sotilganlar bo\'limi sarlavhasida soni, qatorlar tekis', () async {
     final bytes = await ReceiptBuilder.buildZReport(
       restaurantName: 'Diet Bistro', shiftName: 'Smena 1', staffName: 'Ali',

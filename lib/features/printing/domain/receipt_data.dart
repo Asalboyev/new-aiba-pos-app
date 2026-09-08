@@ -46,6 +46,12 @@ class ReceiptData {
   /// urilgan chekda "XATO CHEK №13 o'rniga" satri chiqadi.
   final String? replacesErrorNumber;
 
+  /// ONLAYN BUYURTMA (dostavka) ma'lumoti. Berilsa chek boshida katta
+  /// qilib KANAL nomi (Uzum Tezkor / Yandex / AIBA TEZKOR), so'ng
+  /// buyurtma raqami, mijoz, telefon va manzil chiqadi — oshxona va
+  /// yig'uvchi nimani kimga tayyorlashini bir qarashda ko'radi.
+  final DeliveryInfo? delivery;
+
   const ReceiptData({
     required this.restaurantName,
     this.terminalName,
@@ -72,6 +78,7 @@ class ReceiptData {
     this.isErrorCheck = false,
     this.errorReason,
     this.replacesErrorNumber,
+    this.delivery,
   });
 
   ReceiptData copyWith({List<int>? logoBytes}) => ReceiptData(
@@ -104,4 +111,32 @@ class ReceiptData {
 
   /// True if any line carries an MXIK code AND user wants MXIK shown.
   bool get hasMxik => showMxik && items.any((i) => (i.mxikCode ?? '').isNotEmpty);
+}
+
+
+/// Chekdagi onlayn buyurtma sarlavhasi.
+class DeliveryInfo {
+  const DeliveryInfo({
+    required this.channelLabel,
+    this.orderNo,
+    this.customer,
+    this.phone,
+    this.address,
+    this.note,
+    this.deliveryFee = 0,
+    this.ownCourier = false,
+  });
+
+  /// «Uzum Tezkor» / «Yandex» / «AIBA TEZKOR».
+  final String channelLabel;
+  final String? orderNo;
+  final String? customer;
+  final String? phone;
+  final String? address;
+  final String? note;
+  final num deliveryFee;
+
+  /// Kuryer agregatorniki (Uzum/Yandex) — chekda shuni yozamiz, yig'uvchi
+  /// bizning kuryerni kutib o'tirmasin.
+  final bool ownCourier;
 }

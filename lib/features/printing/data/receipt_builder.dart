@@ -292,6 +292,46 @@ class ReceiptBuilder {
       bytes.addAll(g.feed(1));
     }
 
+    // ── ONLAYN BUYURTMA sarlavhasi ────────────────────────────────────────────
+    // Yig'uvchi va oshpaz chekni qo'liga olganda BIRINCHI ko'radigan narsa:
+    // buyurtma QAYSI tizimdan kelgan (Uzum Tezkor / Yandex / AIBA TEZKOR),
+    // raqami, kimga va qayerga. Ilgari bu ma'lumot chekda umuman yo'q edi —
+    // kassir og'zaki aytardi va paketlar aralashib ketardi.
+    final dlv = data.delivery;
+    if (dlv != null) {
+      bytes.addAll(_tx(g, '=' * cols, styles: _normal));
+      bytes.addAll(_tx(g, dlv.channelLabel.toUpperCase(), styles: _title));
+      if ((dlv.orderNo ?? '').isNotEmpty) {
+        bytes.addAll(_tx(g, 'BUYURTMA № ${dlv.orderNo}', styles: _centerBold));
+      }
+      bytes.addAll(_tx(g, '=' * cols, styles: _normal));
+      if ((dlv.customer ?? '').isNotEmpty) {
+        bytes.addAll(_tx(g, 'Mijoz: ${dlv.customer}', styles: _normal));
+      }
+      if ((dlv.phone ?? '').isNotEmpty) {
+        bytes.addAll(_tx(g, 'Tel:   ${dlv.phone}', styles: _normal));
+      }
+      if ((dlv.address ?? '').isNotEmpty) {
+        for (final l in _wrap('Manzil: ${dlv.address}', cols)) {
+          bytes.addAll(_tx(g, l, styles: _normal));
+        }
+      }
+      if ((dlv.note ?? '').isNotEmpty) {
+        for (final l in _wrap('Izoh: ${dlv.note}', cols)) {
+          bytes.addAll(_tx(g, l, styles: _normal));
+        }
+      }
+      // Kuryer kimniki — yig'uvchi bizning kuryerni kutib o'tirmasin.
+      bytes.addAll(_tx(
+          g,
+          dlv.ownCourier
+              ? '${dlv.channelLabel} kuryeri olib ketadi'
+              : 'Kuryer: bizning yetkazib berish',
+          styles: _centerBold));
+      bytes.addAll(_tx(g, '=' * cols, styles: _normal));
+      bytes.addAll(g.feed(1));
+    }
+
     // ── Sarlavha ──────────────────────────────────────────────────────────────
     // LOGOTIP bo'lsa tepada FAQAT U chiqadi (nom, ООО, INN, manzil pastga —
     // chek tepasi toza va ixcham). Logotip kengligi adminkadan (30–100 %).
@@ -368,6 +408,12 @@ class ReceiptBuilder {
       bytes.addAll(_tx(g, _pair('Oraliq', Money.format(data.subtotal), cols),
           styles: _normal));
       bytes.addAll(_tx(g, _pair('Chegirma', '-${Money.format(data.discount)}', cols),
+          styles: _normal));
+    }
+    // Yetkazib berish puli alohida satrda — mijoz nima uchun to'laganini
+    // ko'radi va kassir taomlar summasi bilan adashmaydi.
+    if (dlv != null && dlv.deliveryFee > 0) {
+      bytes.addAll(_tx(g, _pair('Yetkazish', Money.format(dlv.deliveryFee), cols),
           styles: _normal));
     }
     bytes.addAll(_tx(g, _pair('JAMI', Money.formatSom(data.total), cols),

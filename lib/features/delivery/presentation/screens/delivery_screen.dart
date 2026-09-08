@@ -9,6 +9,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/widgets/pos_chrome.dart';
 import '../../data/delivery_api.dart';
+import '../../../../features/auth/presentation/providers/auth_providers.dart';
+import '../../../../features/orders/domain/entities/cart.dart';
+import '../../../../features/printing/domain/receipt_data.dart';
+import '../../../../features/printing/presentation/printing_providers.dart';
+
 
 /// Figma "Pos Design" dan eksport qilingan delivery ikonlari.
 Widget dlvIcon(String name, {double size = 20, Color color = Colors.white}) {
@@ -319,6 +324,12 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       DStage.yolda => await n.setStatus(o.id, 'delivered'),
       _ => null,
     };
+    // TASDIQLANGAN buyurtma cheki DARHOL chiqadi: yig'uvchi qaysi tizimdan
+    // (Uzum Tezkor / Yandex / AIBA TEZKOR), qaysi ovqatlar va kimga
+    // ekanini qog'ozda ko'radi — og'zaki aytish va paket adashishi tugaydi.
+    if (wasNew && err == null) {
+      unawaited(_printDelivery(o));
+    }
     if (!mounted) return;
     setState(() => _busy = false);
     if (err != null) {
@@ -341,6 +352,55 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     if (!mounted) return;
     setState(() => _busy = false);
     if (err != null) _toast(err);
+  }
+
+  /// Onlayn buyurtma cheki. Xato bo'lsa savdo TO'XTAMAYDI — faqat
+  /// ogohlantirish chiqadi (chekni keyin qayta chiqarish mumkin).
+  Future<void> _printDelivery(DOrder o) async {
+    try {
+      final session = ref.read(sessionProvider);
+      final r = session?.restaurant;
+      final src = ref.read(deliveryProvider).orders
+          .where((d) => d.id == o.id)
+          .cast<DlvOrder?>()
+          .firstWhere((_) => true, orElse: () => null);
+      final data = ReceiptData(
+        restaurantName: r?.name ?? 'AIBA',
+        terminalName: session?.terminal.name,
+        orderNumber: o.number,
+        items: [
+          for (final i in o.items)
+            CartItem(name: i.name, price: i.qty > 0 ? i.price / i.qty : i.price, qty: i.qty),
+        ],
+        subtotal: o.totalSum - (src?.deliveryFee ?? 0),
+        discount: 0,
+        total: o.totalSum,
+        payments: const [],
+        createdAt: AppClock.now(),
+        legalName: r?.legalName,
+        inn: r?.inn,
+        address: r?.address,
+        phone: r?.receiptPhone,
+        header: r?.receiptHeader,
+        footer: r?.receiptFooter,
+        showQr: false,
+        showMxik: false,
+        paperWidth: r?.receiptPaperWidth ?? 80,
+        delivery: DeliveryInfo(
+          channelLabel: o.provider,
+          orderNo: o.number,
+          customer: o.customer.isEmpty ? null : o.customer,
+          phone: o.phone.isEmpty ? null : o.phone,
+          address: src?.address,
+          note: src?.note,
+          deliveryFee: src?.deliveryFee ?? 0,
+          ownCourier: o.ownCourier,
+        ),
+      );
+      await ref.read(printerServiceProvider).printReceipt(data);
+    } catch (e) {
+      if (mounted) _toast('Chek chiqmadi — printerni tekshiring', warning: true);
+    }
   }
 
   void _toast(String msg, {bool warning = false}) {
