@@ -102,11 +102,16 @@ class DOrder {
   final int totalSum;
   int get total => totalSum;
 
+  /// Agregator (Uzum Tezkor / Yandex) buyurtmasini O'Z kuryeri olib
+  /// ketadi — bizda kuryer qidirilmaydi, shuning uchun «kuryer
+  /// qidirilmoqda…» deb kassirni chalg'itmaymiz.
+  bool get ownCourier => channelKey != 'aiba_tezkor';
+
   String? get statusLine => switch (stage) {
-        DStage.tayyor => courier == null
-            ? 'kuryer qidirilmoqda...'
-            : 'kuryer tayinlandi - $courier',
-        DStage.yolda => "Yo'lda · ${courier ?? 'kuryer'}",
+        DStage.tayyor => courier != null
+            ? 'kuryer tayinlandi - $courier'
+            : (ownCourier ? '$provider kuryeri olib ketadi' : 'kuryer qidirilmoqda...'),
+        DStage.yolda => "Yo'lda · ${courier ?? (ownCourier ? '$provider kuryeri' : 'kuryer')}",
         DStage.yetkazilgan => "Yetkazildi${courier != null ? ' · $courier' : ''}",
         DStage.bekor => 'Bekor qilindi',
         _ => null,
