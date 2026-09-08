@@ -57,24 +57,40 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     if (_index == 0 && ref.read(cartProvider).items.isNotEmpty) return false;
     // Kassirda Ish vaqti (1) va Sozlamalar (3) bo'limlari yo'q — aylanishda
     // o'tkazib yuboriladi.
-    final order = _isOrderTaker
-        ? const [2]
-        : (_isManager ? const [0, 1, 2, 3] : const [0, 2]);
+    // Buyurtmachida bo'lim bitta — F10 KANALLARNI aylantiradi
+    // (AIBA TEZKOR → Uzum → Yandex → hammasi), aks holda tugma befoyda.
+    if (_isOrderTaker) {
+      const chans = ['aiba_tezkor', 'uzum', 'yandex', ''];
+      final cur = ref.read(deliveryChannelProvider);
+      final ni = (chans.indexOf(cur) + 1) % chans.length;
+      ref.read(deliveryChannelProvider.notifier).state = chans[ni];
+      _toast(const {
+        'aiba_tezkor': 'AIBA TEZKOR', 'uzum': 'Uzum Tezkor',
+        'yandex': 'Yandex', '': 'Hammasi',
+      }[chans[ni]]!);
+      return true;
+    }
+    final order = _isManager ? const [0, 1, 2, 3] : const [0, 2];
     final i = order.indexOf(_index);
     final next = order[(i < 0 ? 0 : i + 1) % order.length];
     setState(() => _index = next);
     const names = ['Mahsulotlar', 'Ish vaqti', 'Yetkazib berish', 'Sozlamalar'];
+    _toast(names[next]);
+    return true;
+  }
+
+  /// F10 qaysi bo'limga o'tganini bir soniya ko'rsatadi.
+  void _toast(String text) {
     final m = ScaffoldMessenger.maybeOf(context);
     m
       ?..clearSnackBars()
       ..showSnackBar(SnackBar(
-        content: Text(names[next],
-            style: const TextStyle(fontWeight: FontWeight.w600)),
+        content:
+            Text(text, style: const TextStyle(fontWeight: FontWeight.w600)),
         duration: const Duration(milliseconds: 1000),
         behavior: SnackBarBehavior.floating,
         backgroundColor: PosColors.card,
       ));
-    return true;
   }
 
   @override
@@ -234,12 +250,35 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             // poll'da butun HomeShell rebuild bo'lmasin).
             final pending = ref.watch(
                 deliveryProvider.select((s) => s.counts['yangi'] ?? 0));
+            // Menyuda har tizim ALOHIDA bo'lim: Mahsulotlar ostida
+            // AIBA TEZKOR → Uzum Tezkor → Yandex. Yonidagi son — shu
+            // tizimda TASDIQ KUTAYOTGAN buyurtmalar (aralashib ketmasin).
+            final fresh = ref.watch(deliveryProvider.select((s) {
+              final m = <String, int>{'aiba_tezkor': 0, 'uzum': 0, 'yandex': 0};
+              for (final o in s.orders) {
+                if (o.status != 'new') continue;
+                final k = m.containsKey(o.channel) ? o.channel : 'aiba_tezkor';
+                m[k] = m[k]! + 1;
+              }
+              return m;
+            }));
+            final channel = ref.watch(deliveryChannelProvider);
             final rail = PosNavRail(
               selectedIndex: _index,
               onSelect: (i) => setState(() => _index = i),
               onSettings: () => setState(() => _index = 3),
               settingsSelected: _index == 3,
               deliveryBadge: pending,
+              channels: [
+                ('aiba_tezkor', 'AIBA\nTEZKOR', fresh['aiba_tezkor'] ?? 0),
+                ('uzum', 'Uzum\nTezkor', fresh['uzum'] ?? 0),
+                ('yandex', 'Yandex', fresh['yandex'] ?? 0),
+              ],
+              selectedChannel: _index == 2 ? channel : null,
+              onChannel: (c) {
+                ref.read(deliveryChannelProvider.notifier).state = c;
+                setState(() => _index = 2);
+              },
               showShift: _isManager,
               showSettings: _isManager,
               footer: compact

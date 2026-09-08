@@ -184,6 +184,14 @@ class DeliveryState {
 final deliveryProvider =
     StateNotifierProvider<DeliveryNotifier, DeliveryState>((ref) => DeliveryNotifier(ref));
 
+/// Tanlangan KANAL: `''` — hammasi, aks holda `aiba_tezkor` / `uzum` /
+/// `yandex`. Ekrandan TASHQARIDA turadi, chunki uni ikki joy boshqaradi:
+/// chap menyudagi «AIBA TEZKOR / Uzum Tezkor / Yandex» bo'limlari va
+/// ekran tepasidagi tab chizig'i — ikkisi bir xil holatni ko'rsatishi
+/// kerak (avval ekran ichida `setState` edi va menyu bilan ajrashib
+/// qolardi).
+final deliveryChannelProvider = StateProvider<String>((ref) => '');
+
 class DeliveryNotifier extends StateNotifier<DeliveryState> {
   DeliveryNotifier(this._ref) : super(const DeliveryState()) {
     // Yangi buyurtma DARHOL ko'rinishi kerak — kassir kutib o'tirmasin.

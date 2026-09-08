@@ -258,7 +258,10 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   /// Kanal filtri: `''` — hammasi, aks holda `aiba_tezkor` / `uzum` / `yandex`.
   /// Buyurtmachi har tizimni ALOHIDA ko'rishi kerak — aralashib ketmasin.
-  String _channel = '';
+  /// Holat provayderda — chap menyu ham shu filtrni boshqaradi.
+  String get _channel => ref.watch(deliveryChannelProvider);
+  set _channel(String v) =>
+      ref.read(deliveryChannelProvider.notifier).state = v;
 
   /// QABUL QILINMAGAN BUYURTMA SIGNALI. Yangi buyurtma tushib, hech kim
   /// qabul qilmasa har 5 soniyada ovoz beradi — buyurtmachi boshqa ish
@@ -504,7 +507,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
           total: cnt(t.$1),
           fresh: newCnt(t.$1),
           selected: _channel == t.$1,
-          onTap: () => setState(() => _channel = t.$1),
+          onTap: () => _channel = t.$1,
         ),
         const SizedBox(width: 8),
       ],

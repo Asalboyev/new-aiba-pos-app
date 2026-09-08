@@ -31,7 +31,21 @@ class PosNavRail extends StatelessWidget {
     this.showSettings = true,
     this.footer,
     this.deliveryBadge = 0,
+    this.channels = const [],
+    this.selectedChannel,
+    this.onChannel,
   });
+
+  /// Yetkazib berish KANALLARI — har tizim menyuda ALOHIDA bo'lim
+  /// bo'ladi (Mahsulotlar ostida: AIBA TEZKOR → Uzum Tezkor → Yandex).
+  /// Buyurtmachi aralashtirmasligi uchun shunday: `(kalit, nom, yangi soni)`.
+  /// Bo'sh bo'lsa eski ko'rinish — bitta «Yetkazib berish» bo'limi.
+  final List<(String, String, int)> channels;
+
+  /// Tanlangan kanal kaliti (`''` — hammasi). `null` — yetkazib berish
+  /// bo'limi umuman tanlanmagan (boshqa bo'limda turibmiz).
+  final String? selectedChannel;
+  final ValueChanged<String>? onChannel;
 
   /// «Yetkazib berish» yonidagi hisob — tasdiq kutayotgan buyurtmalar.
 
@@ -77,13 +91,23 @@ class PosNavRail extends StatelessWidget {
               selected: selectedIndex == 1,
               onTap: () => onSelect(1),
             ),
-          _NavItem(
-            iconAsset: 'assets/icons/nav_delivery.svg',
-            label: 'Yetkazib\nberish',
-            selected: selectedIndex == 2,
-            onTap: () => onSelect(2),
-            badge: deliveryBadge,
-          ),
+          if (channels.isEmpty)
+            _NavItem(
+              iconAsset: 'assets/icons/nav_delivery.svg',
+              label: 'Yetkazib\nberish',
+              selected: selectedIndex == 2,
+              onTap: () => onSelect(2),
+              badge: deliveryBadge,
+            )
+          else
+            for (final c in channels)
+              _NavItem(
+                iconAsset: 'assets/icons/nav_delivery.svg',
+                label: c.$2,
+                selected: selectedIndex == 2 && selectedChannel == c.$1,
+                onTap: () => onChannel?.call(c.$1),
+                badge: c.$3,
+              ),
           const Spacer(),
           if (footer != null) ...[
             footer!,
