@@ -63,6 +63,31 @@ void main() {
     expect(got, 'uzum');
   });
 
+  testWidgets('buyurtmachida Mahsulotlar bo\'limi yashiriladi', (t) async {
+    await pump(
+      t,
+      PosNavRail(
+        selectedIndex: 2,
+        onSelect: (_) {},
+        onSettings: () {},
+        showShift: false,
+        showSettings: false,
+        showProducts: false,
+        channels: const [
+          ('aiba_tezkor', 'AIBA\nTEZKOR', 0),
+          ('uzum', 'Uzum\nTezkor', 0),
+          ('yandex', 'Yandex', 0),
+        ],
+        selectedChannel: 'aiba_tezkor',
+        onChannel: (_) {},
+      ),
+    );
+    expect(find.text('Mahsulotlar'), findsNothing);
+    expect(find.text('AIBA\nTEZKOR'), findsOneWidget);
+    expect(find.text('Uzum\nTezkor'), findsOneWidget);
+    expect(find.text('Yandex'), findsOneWidget);
+  });
+
   testWidgets('kanallar berilmasa eski «Yetkazib berish» qoladi', (t) async {
     await pump(
       t,

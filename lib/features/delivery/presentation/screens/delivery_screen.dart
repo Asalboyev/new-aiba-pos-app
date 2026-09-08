@@ -7,6 +7,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/sound/alarm_sound.dart';
 import '../../../../core/widgets/pos_chrome.dart';
 import '../../data/delivery_api.dart';
 import '../../../../features/auth/presentation/providers/auth_providers.dart';
@@ -296,10 +297,10 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   void _syncAlarm() {
     final need = _unaccepted.isNotEmpty && !_muted;
     if (need && _alarm == null) {
-      SystemSound.play(SystemSoundType.alert);
+      playAlarm();
       _alarm = Timer.periodic(const Duration(seconds: 5), (_) {
         if (!mounted || _muted || _unaccepted.isEmpty) return;
-        SystemSound.play(SystemSoundType.alert);
+        playAlarm();
       });
     } else if (!need && _alarm != null) {
       _alarm?.cancel();
@@ -485,6 +486,12 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   // ─────────── Kanban ───────────
 
+  /// BUYURTMACHI rejimi: har tizim CHAP MENYUda alohida bo'lim, shuning
+  /// uchun ekran tepasidagi tab chizig'i ikkilanish bo'lardi — u
+  /// ko'rsatilmaydi (signal tugmasi esa QOLADI, u ishning bir qismi).
+  bool get _tabsHidden =>
+      (ref.watch(sessionProvider)?.staff.role ?? '') == 'zakazchik';
+
   /// Kanal tanlash chizig'i: har tizim ALOHIDA ko'rinadi (aralashmasin),
   /// yonida qabul qilinmagan buyurtmalar soni. O'ngda — signalni o'chirish.
   Widget _channelBar() {
@@ -501,16 +508,17 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       ('yandex', 'Yandex'),
     ];
     return Row(children: [
-      for (final t in tabs) ...[
-        _ChannelTab(
-          label: t.$2,
-          total: cnt(t.$1),
-          fresh: newCnt(t.$1),
-          selected: _channel == t.$1,
-          onTap: () => _channel = t.$1,
-        ),
-        const SizedBox(width: 8),
-      ],
+      if (!_tabsHidden)
+        for (final t in tabs) ...[
+          _ChannelTab(
+            label: t.$2,
+            total: cnt(t.$1),
+            fresh: newCnt(t.$1),
+            selected: _channel == t.$1,
+            onTap: () => _channel = t.$1,
+          ),
+          const SizedBox(width: 8),
+        ],
       const Spacer(),
       if (_unaccepted.isNotEmpty)
         TextButton.icon(

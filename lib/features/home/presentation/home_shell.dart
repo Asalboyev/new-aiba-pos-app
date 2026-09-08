@@ -60,13 +60,13 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     // Buyurtmachida bo'lim bitta — F10 KANALLARNI aylantiradi
     // (AIBA TEZKOR → Uzum → Yandex → hammasi), aks holda tugma befoyda.
     if (_isOrderTaker) {
-      const chans = ['aiba_tezkor', 'uzum', 'yandex', ''];
+      const chans = ['aiba_tezkor', 'uzum', 'yandex'];
       final cur = ref.read(deliveryChannelProvider);
       final ni = (chans.indexOf(cur) + 1) % chans.length;
       ref.read(deliveryChannelProvider.notifier).state = chans[ni];
       _toast(const {
         'aiba_tezkor': 'AIBA TEZKOR', 'uzum': 'Uzum Tezkor',
-        'yandex': 'Yandex', '': 'Hammasi',
+        'yandex': 'Yandex',
       }[chans[ni]]!);
       return true;
     }
@@ -98,6 +98,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     super.initState();
     HardwareKeyboard.instance.addHandler(_onNavKey);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Buyurtmachida «Hammasi» sahifasi YO'Q (har tizim alohida bo'lim) —
+      // kirgach darhol AIBA TEZKOR bo'limi ochiladi.
+      if (_isOrderTaker && ref.read(deliveryChannelProvider).isEmpty) {
+        ref.read(deliveryChannelProvider.notifier).state = 'aiba_tezkor';
+      }
       if (ref.read(sessionProvider) != null) {
         ref.read(syncServiceProvider.notifier).syncAll();
       }
@@ -269,6 +274,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
               onSettings: () => setState(() => _index = 3),
               settingsSelected: _index == 3,
               deliveryBadge: pending,
+              showProducts: !_isOrderTaker,
               channels: [
                 ('aiba_tezkor', 'AIBA\nTEZKOR', fresh['aiba_tezkor'] ?? 0),
                 ('uzum', 'Uzum\nTezkor', fresh['uzum'] ?? 0),

@@ -31,10 +31,15 @@ class PosNavRail extends StatelessWidget {
     this.showSettings = true,
     this.footer,
     this.deliveryBadge = 0,
+    this.showProducts = true,
     this.channels = const [],
     this.selectedChannel,
     this.onChannel,
   });
+
+  /// false — BUYURTMACHI rejimi: «Mahsulotlar» bo'limi ko'rsatilmaydi
+  /// (unga kassa ochilmaydi, bosilsa baribir buyurtmalar chiqardi).
+  final bool showProducts;
 
   /// Yetkazib berish KANALLARI — har tizim menyuda ALOHIDA bo'lim
   /// bo'ladi (Mahsulotlar ostida: AIBA TEZKOR → Uzum Tezkor → Yandex).
@@ -78,12 +83,13 @@ class PosNavRail extends StatelessWidget {
           const SizedBox(height: 16),
           SvgPicture.asset('assets/logo_mark.svg', width: 52, height: 52),
           const SizedBox(height: 30),
-          _NavItem(
-            iconAsset: 'assets/icons/nav_products.svg',
-            label: 'Mahsulotlar',
-            selected: selectedIndex == 0,
-            onTap: () => onSelect(0),
-          ),
+          if (showProducts)
+            _NavItem(
+              iconAsset: 'assets/icons/nav_products.svg',
+              label: 'Mahsulotlar',
+              selected: selectedIndex == 0,
+              onTap: () => onSelect(0),
+            ),
           if (showShift)
             _NavItem(
               iconAsset: 'assets/icons/nav_shift.svg',
