@@ -61,6 +61,7 @@ class DOrder {
     required this.totalSum,
     required this.id,
     required this.channelKey,
+    required this.statusKey,
     required this.hasUnlinked,
     required this.confirmed,
     required this.number,
@@ -79,6 +80,11 @@ class DOrder {
   /// POS'dagi buyurtma ID'si — harakatlar shu bo'yicha yuboriladi.
   final String id;
   final String channelKey;
+
+  /// Serverdagi ANIQ holat (`confirmed` / `cooking` / …). «Jarayonda»
+  /// ustuni ikkalasini ham o'z ichiga oladi, lekin agregatorga qaysi
+  /// bosqich yuborilishi shunga bog'liq.
+  final String statusKey;
   /// Chekka tushmaydigan pozitsiya bormi (POS katalogida topilmagan).
   final bool hasUnlinked;
   /// Cheki yozilganmi (tasdiqlangan).
@@ -176,6 +182,7 @@ DOrder _toDOrder(DlvOrder d) {
     totalSum: d.total,
     id: d.id,
     channelKey: d.channel,
+    statusKey: d.status,
     hasUnlinked: d.hasUnlinked,
     confirmed: d.confirmed,
     number: d.number.isEmpty ? d.id.substring(0, 6) : d.number,
@@ -258,7 +265,12 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     final wasNew = o.stage == DStage.yangi;
     final err = switch (o.stage) {
       DStage.yangi => await n.confirm(o.id),
-      DStage.jarayonda => await n.setStatus(o.id, 'ready'),
+      // «Jarayonda» ikki bosqichdan iborat: tasdiqlangan → TAYYORLANMOQDA
+      // → tayyor. Uzum/Yandex aynan shu uch holatni kutadi
+      // (ACCEPTED_BY_RESTAURANT → COOKING → READY) va mijoz ilovada
+      // buyurtma qayerda turganini ko'radi.
+      DStage.jarayonda => await n.setStatus(
+          o.id, o.statusKey == 'confirmed' ? 'cooking' : 'ready'),
       // Kassir «Yetkazildi» bosdi — buyurtma yakunlanadi. Kuryer botda
       // «Mahsulot oldim» bossa POS o'zi 'picked_up' qiladi; kassirning
       // tugmasi esa DOIM yakuniy 'delivered' — aks holda kuryer ulanmagan
@@ -690,9 +702,13 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
           const SizedBox(width: 12),
           Expanded(
               child: _BigButton(
-            label: 'Buyurtma Tayyor  $mmss',
+            // Tasdiqlangan buyurtma avval «Tayyorlanmoqda» ga o'tadi
+            // (agregatorga COOKING ketadi), keyin «Tayyor» (READY).
+            label: o.statusKey == 'confirmed'
+                ? 'Tayyorlanmoqda  $mmss'
+                : 'Buyurtma Tayyor  $mmss',
             icon: 'check',
-            color: _green,
+            color: o.statusKey == 'confirmed' ? _amber : _green,
             onTap: () => _advance(o),
           )),
         ]);
@@ -1125,12 +1141,15 @@ class _OrderCard extends StatelessWidget {
               ] else if (order.stage == DStage.jarayonda) ...[
                 const SizedBox(height: 12),
                 _SmallButton(
-                    label: 'Tayyor',
+                    label: order.statusKey == 'confirmed' ? 'Tayyorlanmoqda' : 'Tayyor',
                     icon: 'check',
                     color: selected
                         ? Colors.white.withValues(alpha: 0.18)
-                        : _green.withValues(alpha: 0.12),
-                    textColor: selected ? Colors.white : _green,
+                        : (order.statusKey == 'confirmed' ? _amber : _green)
+                            .withValues(alpha: 0.12),
+                    textColor: selected
+                        ? Colors.white
+                        : (order.statusKey == 'confirmed' ? _amber : _green),
                     onTap: onReady),
               ] else if (order.stage == DStage.tayyor ||
                   order.stage == DStage.yolda) ...[
