@@ -162,14 +162,41 @@ class _StageStyle {
   final String icon; // assets/icons/dlv_<icon>.svg
 }
 
-_StageStyle _style(DStage s) => switch (s) {
-      DStage.yangi => const _StageStyle('Yangi', _chipBlue, 'package'),
-      DStage.jarayonda => const _StageStyle('Jarayonda', _amber, 'soup'),
-      DStage.tayyor => const _StageStyle('Tayyor', _green, 'checks'),
-      DStage.yolda => const _StageStyle("Yo'lda", _indigo, 'truck'),
-      DStage.yetkazilgan => const _StageStyle('Yetkazilgan', _green, 'check'),
-      DStage.bekor => const _StageStyle('Bekor qilingan', _red, 'x'),
+_StageStyle _style(DStage s, [String channel = '']) => switch (s) {
+      DStage.yangi => _StageStyle(_stageTitle(s, channel), _chipBlue, 'package'),
+      DStage.jarayonda => _StageStyle(_stageTitle(s, channel), _amber, 'soup'),
+      DStage.tayyor => _StageStyle(_stageTitle(s, channel), _green, 'checks'),
+      DStage.yolda => _StageStyle(_stageTitle(s, channel), _indigo, 'truck'),
+      DStage.yetkazilgan => _StageStyle(_stageTitle(s, channel), _green, 'check'),
+      DStage.bekor => _StageStyle(_stageTitle(s, channel), _red, 'x'),
     };
+
+/// USTUN NOMI TANLANGAN TIZIMNIKI. Agregatorlarning o'z atamalari bor va
+/// kassir mijoz bilan gaplashganda AYNAN o'sha so'zni eshitadi: Uzum'da
+/// «Kuryer oldi», bizda «Yo'lda». Ilgari hamma tabda bir xil nom turardi
+/// va kassir Uzum ilovasidagi holat bilan solishtira olmasdi.
+String _stageTitle(DStage s, String channel) {
+  // Uzum Tezkor va Yandex bitta shartnomani (Yandex Eats API) ishlatadi.
+  final agg = channel == 'uzum' || channel == 'yandex';
+  if (!agg) {
+    return switch (s) {
+      DStage.yangi => 'Yangi',
+      DStage.jarayonda => 'Jarayonda',
+      DStage.tayyor => 'Tayyor',
+      DStage.yolda => "Yo'lda",
+      DStage.yetkazilgan => 'Yetkazilgan',
+      DStage.bekor => 'Bekor qilingan',
+    };
+  }
+  return switch (s) {
+    DStage.yangi => 'Yangi',                    // NEW
+    DStage.jarayonda => 'Tayyorlanmoqda',       // ACCEPTED → COOKING
+    DStage.tayyor => 'Tayyor',                  // READY
+    DStage.yolda => 'Kuryer oldi',              // TAKEN_BY_COURIER
+    DStage.yetkazilgan => 'Yetkazildi',         // DELIVERED
+    DStage.bekor => 'Bekor qilindi',            // CANCELLED
+  };
+}
 
 // ─────────── Namuna buyurtmalar (aggregator ulanmaguncha) ───────────
 
@@ -539,6 +566,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
             const n = 5, gap = 12.0, minW = 224.0, scrollW = 284.0;
             Widget col(DStage stage) => _KanbanColumn(
                   stage: stage,
+                  channel: _channel,
                   orders: _byStage(stage),
                   onOpen: _open,
                   onAccept: (o) => _advance(o),
@@ -571,7 +599,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   // ─────────── Detal (Figma "All Orders") ───────────
 
   Widget _detail(DOrder o) {
-    final st = _style(o.stage);
+    final st = _style(o.stage, o.channelKey);
     final same = _byStage(o.stage);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -608,7 +636,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Column(children: [
-                    _ColumnHeader(stage: o.stage, count: same.length),
+                    _ColumnHeader(stage: o.stage, count: same.length, channel: o.channelKey),
                     const SizedBox(height: 12),
                     Expanded(
                       child: ListView.separated(
@@ -686,7 +714,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                           ],
                         ),
                       ),
-                      _StatusRing(stage: o.stage),
+                      _StatusRing(stage: o.stage, channel: o.channelKey),
                     ],
                   ),
                   const SizedBox(height: 18),
@@ -928,11 +956,12 @@ class _Chip extends StatelessWidget {
 
 /// O'ng yuqoridagi holat halqasi (Figma: 66×68, ichida oq 12% doira, ikon 24).
 class _StatusRing extends StatelessWidget {
-  const _StatusRing({required this.stage});
+  const _StatusRing({required this.stage, this.channel = ''});
   final DStage stage;
+  final String channel;
   @override
   Widget build(BuildContext context) {
-    final st = _style(stage);
+    final st = _style(stage, channel);
     final done = stage == DStage.yetkazilgan || stage == DStage.bekor;
     return SizedBox(
       width: 66,
@@ -1112,12 +1141,13 @@ class _BigButton extends StatelessWidget {
 
 /// Ustun sarlavhasi (Figma: chevron-up 24 + 18 semibold + rangli badge).
 class _ColumnHeader extends StatelessWidget {
-  const _ColumnHeader({required this.stage, required this.count});
+  const _ColumnHeader({required this.stage, required this.count, this.channel = ''});
   final DStage stage;
   final int count;
+  final String channel;
   @override
   Widget build(BuildContext context) {
-    final st = _style(stage);
+    final st = _style(stage, channel);
     final softBadge = stage == DStage.yetkazilgan;
     return Row(children: [
       dlvIcon('chevron-up', size: 24, color: Colors.white),
@@ -1332,7 +1362,11 @@ class _KanbanColumn extends StatelessWidget {
     required this.onOpen,
     required this.onAccept,
     required this.onReady,
+    this.channel = '',
   });
+  /// Tanlangan tizim (`uzum` / `yandex` / `aiba_tezkor` / `''` — hammasi):
+  /// ustun nomi shunga qarab o'zgaradi.
+  final String channel;
   final DStage stage;
   final List<DOrder> orders;
   final void Function(DOrder) onOpen;
@@ -1350,7 +1384,7 @@ class _KanbanColumn extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _ColumnHeader(stage: stage, count: orders.length),
+          _ColumnHeader(stage: stage, count: orders.length, channel: channel),
           const SizedBox(height: 12),
           Expanded(
             child: orders.isEmpty
