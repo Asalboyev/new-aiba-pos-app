@@ -28,6 +28,7 @@ void main() {
     setUp(() async {
       produced.clear();
       srv = LanServer(
+        token: 'qa-lan-token-0123456789',
         port: 0, // bo'sh portni OS tanlaydi
         board: () async => board,
         produce: (b) async {
@@ -69,13 +70,16 @@ void main() {
       expect((j['restaurant'] as Map)['name'], 'Diet Bistro');
     });
 
-    test('oshpaz kirimi qabul qilinadi', () async {
+    test('oshpaz kirimi qabul qilinadi (kalit bilan)', () async {
       final c = HttpClient();
       final req = await c.postUrl(Uri.parse('$base/api/v2/pos-terminal/kitchen/produce'));
       req.headers.contentType = ContentType.json;
+      req.headers.set(HttpHeaders.authorizationHeader, 'Bearer qa-lan-token-0123456789');
       req.write(jsonEncode({'items': [{'product_id': 'p1', 'qty': 3}]}));
-      await req.close();
+      final r = await req.close();
+      await r.drain<void>();
       c.close();
+      expect(r.statusCode, 200);
       expect(produced.single['items'], isNotEmpty);
     });
 

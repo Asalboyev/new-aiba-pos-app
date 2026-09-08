@@ -174,6 +174,7 @@ class KitchenNotifier extends StateNotifier<KitchenState> {
       // Kassa kompyuterining tarmoqdagi manzili — internet uzilganda
       // so'rovlar o'sha yerga o'zi o'tadi (qo'lda hech narsa kiritilmaydi).
       DioClient.rememberLan(res.data?['lan']);
+      DioClient.rememberLanToken(res.data?['lan_token']);
       if (res.data?['unchanged'] == true) {
         // Hech narsa o'zgarmagan — state ham yangilanmaydi, aks holda har
         // 5 soniyada butun ekran (grid, rasmlar) bekorga qayta chizilardi.

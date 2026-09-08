@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../features/auth/presentation/providers/auth_providers.dart';
 import '../../features/orders/data/datasources/pending_orders_local_datasource.dart';
 import '../../features/orders/presentation/providers/orders_providers.dart';
+import '../errors/failure.dart';
 import '../providers/core_providers.dart';
 import 'lan_server.dart';
 
@@ -29,6 +31,7 @@ class LanService {
   static const _kTvHtml = 'lan_tv_html';
   static const _kTvSw = 'lan_tv_sw';
   static const _kProduce = 'lan_produce_queue';
+  static const _kToken = 'lan_token';
 
   LanServer? _server;
   Timer? _tick;
@@ -37,6 +40,19 @@ class LanService {
   String? get url => _server?.url;
 
   SharedPreferences get _prefs => _ref.read(sharedPreferencesProvider);
+
+  /// Lokal serverning maxfiy kaliti. Bir marta yaratiladi va shu kassada
+  /// saqlanadi; bulutga e'lon qilinib, oshxona planshetiga doska javobi
+  /// orqali yetkaziladi — hech kim qo'lda kiritmaydi.
+  String _token() {
+    final saved = _prefs.getString(_kToken);
+    if (saved != null && saved.length >= 16) return saved;
+    final r = Random.secure();
+    const abc = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    final t = List.generate(32, (_) => abc[r.nextInt(abc.length)]).join();
+    _prefs.setString(_kToken, t);
+    return t;
+  }
   PendingOrdersLocalDataSource get _pending => _ref.read(pendingOrdersLocalDataSourceProvider);
 
   Future<String?> start() async {
@@ -44,6 +60,7 @@ class LanService {
       board: _board,
       produce: _produce,
       restaurant: _restaurantJson,
+      token: _token(),
       tvPage: (kind) => _prefs.getString(kind == 'sw' ? _kTvSw : _kTvHtml),
     );
     final u = await _server!.start();
@@ -66,16 +83,17 @@ class LanService {
   Future<void> _refresh() async {
     if (_busy) return;
     _busy = true;
-    try {
-      await _flushProduce();
-      await _pullBoard();
-      await _pullTvPage();
-      await _announce(_server?.url);
-    } catch (_) {
-      // Internet yo'q — kesh bilan ishlayveramiz.
-    } finally {
-      _busy = false;
+    // Har qadam ALOHIDA: doska so'rovi yiqilsa ham manzil e'loni bajarilishi
+    // kerak — aks holda 3 daqiqadan keyin manzil eskirib, oshxona zaxira
+    // manzilni oladigan joy qolmasdi.
+    for (final step in [_flushProduce, _pullBoard, _pullTvPage, _announceSelf]) {
+      try {
+        await step();
+      } catch (_) {
+        // Internet yo'q — kesh bilan ishlayveramiz.
+      }
     }
+    _busy = false;
   }
 
   Future<void> _pullBoard() async {
@@ -103,11 +121,13 @@ class LanService {
     }
   }
 
+  Future<void> _announceSelf() => _announce(_server?.url);
+
   Future<void> _announce(String? url) async {
     try {
       await _ref.read(dioClientProvider).post<Map<String, dynamic>>(
             '/api/v2/pos-terminal/lan-address',
-            data: {'url': url ?? ''},
+            data: {'url': url ?? '', 'token': _token()},
             noLogout: true,
           );
     } catch (_) {
@@ -161,10 +181,35 @@ class LanService {
     return d;
   }
 
+  /// Doska «versiyasi» — o'zgarish bo'lmasa TV ro'yxatni qayta chizmaydi.
+  /// Qisqa `product_id` (masalan `x`) kelganda `substring(0,4)` OTAR va
+  /// doska butunlay 500 qaytarardi — oshxona ekrani va TV o'lardi.
   static String _deltaStamp(Map<String, double> d) {
     if (d.isEmpty) return '0';
     final keys = d.keys.toList()..sort();
-    return keys.map((k) => '${k.substring(0, 4)}${d[k]}').join('.');
+    var h = 0;
+    for (final k in keys) {
+      h = (h * 31 + k.hashCode) & 0x3fffffff;
+      h = (h * 31 + d[k]!.hashCode) & 0x3fffffff;
+    }
+    return '$h.${keys.length}';
+  }
+
+  /// Kirim yozuvi yaroqlimi: `product_id` UUID ko'rinishida va miqdor
+  /// musbat chekli son. Yaroqsizi navbatga TUSHMAYDI — aks holda u bulutga
+  /// hech qachon o'tmay, navbatda abadiy qolib ketardi.
+  static bool validProduce(Map<String, dynamic> body) {
+    final items = body['items'];
+    if (items is! List || items.isEmpty || items.length > 500) return false;
+    final uuid = RegExp(r'^[0-9a-fA-F-]{32,36}$');
+    for (final it in items) {
+      if (it is! Map) return false;
+      final pid = (it['product_id'] ?? '').toString();
+      final q = double.tryParse('${it['qty']}');
+      if (!uuid.hasMatch(pid)) return false;
+      if (q == null || !q.isFinite || q <= 0 || q > 1e6) return false;
+    }
+    return true;
   }
 
   /// Qoldiqni o'zgartiradi va statusni QAYTA hisoblaydi — TV'dagi ustunlar
@@ -207,16 +252,33 @@ class LanService {
   }
 
   Future<Map<String, dynamic>> _produce(Map<String, dynamic> body) async {
-    final q = _queue()..add(body);
-    await _prefs.setString(_kProduce, jsonEncode(q));
+    if (!validProduce(body)) {
+      return {'ok': false, 'detail': 'Kirim ma\'lumoti noto\'g\'ri'};
+    }
+    final q = await _lock(() async {
+      final q = _queue()..add(body);
+      await _prefs.setString(_kProduce, jsonEncode(q));
+      return q;
+    });
     unawaited(_flushProduce());
     return {'ok': true, 'queued': q.length};
   }
 
+  /// Navbat bilan ishlash NAVBAT BILAN bo'ladi. Ilgari `_produce` va
+  /// `_flushProduce` bir vaqtda o'qib-yozar va oshpazning yangi kirimi
+  /// yo'qolib ketishi mumkin edi.
+  Future<T> _lock<T>(Future<T> Function() run) {
+    final next = _queueLock.then((_) => run());
+    _queueLock = next.then((_) {}, onError: (_) {});
+    return next;
+  }
+
+  Future<void> _queueLock = Future.value();
+
   /// Navbatdagi kirimlarni bulutga yuboradi. `client_uuid` idempotent kalit —
   /// ikki marta yuborilsa ham bir marta yoziladi.
   Future<void> _flushProduce() async {
-    final q = _queue();
+    final q = await _lock(() async => _queue());
     if (q.isEmpty) return;
     final left = <Map<String, dynamic>>[];
     for (final p in q) {
@@ -226,11 +288,24 @@ class LanService {
               data: p,
               noLogout: true,
             );
-      } catch (_) {
-        left.add(p);
+      } catch (e) {
+        // Server «bu ma'lumot noto'g'ri» desa (4xx) qayta yuborishdan
+        // ma'no yo'q — yozuv TASHLANADI. Ilgari u navbatda abadiy qolib,
+        // har safar xato berardi.
+        // 4xx = server «bu ma'lumot noto'g'ri» dedi; 401/403 esa vaqtinchalik
+        // bo'lishi mumkin (token yangilanadi) — ular saqlanadi.
+        final code = e is ServerFailure ? e.statusCode : null;
+        final permanent = code != null && code >= 400 && code < 500;
+        if (!permanent) left.add(p);
       }
     }
-    await _prefs.setString(_kProduce, jsonEncode(left));
+    // Flush davomida qo'shilganlar yo'qolmasin: navbatning FAQAT yuborilgan
+    // qismi olib tashlanadi.
+    await _lock(() async {
+      final now = _queue();
+      final keep = now.where((x) => !q.contains(x) || left.contains(x)).toList();
+      await _prefs.setString(_kProduce, jsonEncode(keep));
+    });
   }
 }
 

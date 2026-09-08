@@ -26,8 +26,16 @@ class LanServer {
     required this.produce,
     required this.restaurant,
     required this.tvPage,
+    required this.token,
     this.port = defaultPort,
   });
+
+  /// YOZUV amallarining maxfiy kaliti. O'qish (doska, filial nomi, TV
+  /// sahifasi) ochiq — bu restoranning o'z tarmog'i va ma'lumot faqat taom
+  /// nomi/qoldig'i. Kirim YOZISH esa kalitsiz mumkin emas: aks holda
+  /// mehmon Wi-Fi'idagi telefon soxta porsiya kiritib, o'g'irlangan taomni
+  /// yashira olardi (kirim keyin kassaning tokeni bilan bulutga ketardi).
+  final String token;
 
   /// Oshxona doskasi: bulutdagi oxirgi holat + hali yuborilmagan
   /// savdolar/kirimlar hisobga olingan ro'yxat.
@@ -54,23 +62,41 @@ class LanServer {
   bool get running => _srv != null;
 
   /// Kompyuterning restoran tarmog'idagi manzili (192.168.x, 10.x, 172.16-31.x).
+  /// VirtualBox/VMware/Hyper-V/VPN adapterlari — oshxona planshet ular
+  /// orqali kassaga YETA OLMAYDI, shuning uchun bunday manzil e'lon
+  /// qilinmaydi (aks holda internetsiz rejim jimgina ishlamay qolardi).
+  static final _virtual = RegExp(
+    r'virtual|vmware|hyper-v|vethernet|vbox|loopback|tap|tun|vpn|docker|wsl|zerotier|tailscale',
+    caseSensitive: false,
+  );
+
+  /// VirtualBox host-only tarmog'ining odatiy manzili.
+  static bool _looksVirtualIp(String ip) => ip.startsWith('192.168.56.');
+
   static Future<String?> lanIp() async {
     try {
       final ifs = await NetworkInterface.list(
         type: InternetAddressType.IPv4,
         includeLoopback: false,
       );
+      String? fallback;
       for (final i in ifs) {
+        final virtual = _virtual.hasMatch(i.name);
         for (final a in i.addresses) {
-          if (isPrivateIp(a.address)) return a.address;
+          if (!isPrivateIp(a.address) || a.address.startsWith('127.')) continue;
+          if (virtual || _looksVirtualIp(a.address)) {
+            fallback ??= a.address; // boshqasi topilmasa shu ishlatiladi
+            continue;
+          }
+          return a.address;
         }
       }
+      return fallback;
     } on OSError {
       return null;
     } on SocketException {
       return null;
     }
-    return null;
   }
 
   static bool isPrivateIp(String ip) {
@@ -89,14 +115,15 @@ class LanServer {
     if (_srv != null) return _url;
     ip ??= await lanIp();
     if (ip == null) return null; // tarmoqqa ulanmagan
+    // AYNAN shu manzilga bind qilamiz. Ilgari `anyIPv4` ga bind qilinib,
+    // URL esa berilgan ip'dan yasalardi — manzil bu kompyuterniki ekani
+    // TEKSHIRILMASDI va noto'g'ri manzil bulutga e'lon qilinishi mumkin edi.
     try {
-      _srv = await HttpServer.bind(
-        ip == '127.0.0.1' ? InternetAddress.loopbackIPv4 : InternetAddress.anyIPv4,
-        port,
-        shared: true,
-      );
+      _srv = await HttpServer.bind(InternetAddress(ip), port, shared: true);
     } on SocketException {
-      return null; // port band (ikkinchi nusxa ishlayapti)
+      return null; // port band yoki manzil bu kompyuterniki emas
+    } on ArgumentError {
+      return null; // manzil noto'g'ri yozilgan
     }
     _srv!.autoCompress = true;
     _url = 'http://$ip:${_srv!.port}';
@@ -135,10 +162,15 @@ class LanServer {
     try {
       await _route(req, res);
     } catch (_) {
-      res.statusCode = 500;
-      _json(res, {'detail': 'Lokal server xatosi'});
+      try {
+        res.statusCode = 500;
+        _json(res, {'detail': 'Lokal server xatosi'});
+      } catch (_) {/* javob allaqachon boshlangan */}
     }
-    await res.close();
+    // Mijoz javob o'rtasida uzilsa `close()` ham otadi — ushlaymiz.
+    try {
+      await res.close();
+    } catch (_) {}
   }
 
   Future<void> _route(HttpRequest req, HttpResponse res) async {
@@ -186,7 +218,21 @@ class LanServer {
     }
 
     if (req.method == 'POST' && path.endsWith('/pos-terminal/kitchen/produce')) {
-      final raw = await utf8.decoder.bind(req).join();
+      final auth = req.headers.value('authorization') ?? '';
+      final given = auth.toLowerCase().startsWith('bearer ') ? auth.substring(7).trim() : '';
+      if (token.isEmpty || given != token) {
+        res.statusCode = 403;
+        _json(res, {'detail': 'Kalit noto\'g\'ri — oshxona ilovasidan kiriting'});
+        return;
+      }
+      // So'rov tanasi cheklanadi: kattа JSON kassaning xotirasini yeb
+      // qo'ymasin (LAN'dagi qurilma kassani osdirib qo'ya olardi).
+      final raw = await _readLimited(req);
+      if (raw == null) {
+        res.statusCode = 413;
+        _json(res, {'detail': 'So\'rov juda katta'});
+        return;
+      }
       Map<String, dynamic> body;
       try {
         body = (jsonDecode(raw.isEmpty ? '{}' : raw) as Map).cast<String, dynamic>();
@@ -201,6 +247,33 @@ class LanServer {
 
     res.statusCode = 404;
     _json(res, {'detail': 'Lokal serverda bu amal yo\'q'});
+  }
+
+  static const _maxBody = 256 * 1024;
+
+  /// Tanani chegara bilan o'qiydi — chegaradan oshsa `null`.
+  ///
+  /// Oqim OXIRIGACHA o'qiladi (saqlanmasa ham): yarim o'qilgan so'rovga
+  /// javob berilsa mijoz tomonda ulanish xatosi bo'ladi va u xato javobni
+  /// (413) umuman ko'rmaydi.
+  static Future<String?> _readLimited(HttpRequest req) async {
+    final buf = <int>[];
+    var over = false;
+    await for (final chunk in req) {
+      if (over) continue;
+      if (buf.length + chunk.length > _maxBody) {
+        over = true;
+        buf.clear();
+        continue;
+      }
+      buf.addAll(chunk);
+    }
+    if (over) return null;
+    try {
+      return utf8.decode(buf);
+    } on FormatException {
+      return null;
+    }
   }
 
   void _json(HttpResponse res, Object body) {

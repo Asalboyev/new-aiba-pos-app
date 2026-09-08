@@ -47,7 +47,19 @@ class DioClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          options.baseUrl = _activeBase();
+          final base = _activeBase();
+          options.baseUrl = base;
+          // Lokal serverga yuborilayotgan bo'lsa — uning kalitini qo'yamiz
+          // (bulut tokeni u yerda ishlamaydi va aksincha).
+          final lan = lanBase;
+          if (lan != null && base == lan) {
+            final t = lanToken;
+            if (t != null && t.isNotEmpty) {
+              options.headers['Authorization'] = 'Bearer $t';
+              handler.next(options);
+              return;
+            }
+          }
           final noAuth = options.extra['noAuth'] == true;
           if (!noAuth) {
             final token = await _config.getToken();
@@ -74,14 +86,28 @@ class DioClient {
   /// oshxonani chetdagi serverga yo'naltirmasin.
   static void rememberLan(Object? value) {
     final v = value is String ? value.trim() : '';
-    if (v.isEmpty || !v.startsWith('http://')) return;
-    final host = v.substring(7).split(':').first;
-    final o = host.split('.').map(int.tryParse).toList();
+    if (v.isEmpty) return;
+    // Manzil `Uri` bilan ajratiladi: qo'lda kesish `http://10.0.0.1:80@evil.com`
+    // kabi hiylaga uchrardi (haqiqiy host — `evil.com`).
+    final u = Uri.tryParse(v);
+    if (u == null || u.scheme != 'http' || u.userInfo.isNotEmpty) return;
+    if (u.path.isNotEmpty && u.path != '/') return;
+    if (!u.hasPort || u.port <= 0 || u.port > 65535) return;
+    final o = u.host.split('.').map(int.tryParse).toList();
     if (o.length != 4 || o.any((x) => x == null || x < 0 || x > 255)) return;
     final private = o[0] == 10 ||
         (o[0] == 192 && o[1] == 168) ||
         (o[0] == 172 && o[1]! >= 16 && o[1]! <= 31);
-    if (private) lanBase = v.replaceAll(RegExp(r'/+$'), '');
+    if (private) lanBase = 'http://${u.host}:${u.port}';
+  }
+
+  /// Lokal serverning yozuv kaliti (doska javobidan keladi). Oshxona
+  /// ilovasi LAN'ga kirim yuborganda shu kalitni qo'yadi.
+  static String? lanToken;
+
+  static void rememberLanToken(Object? value) {
+    final v = value is String ? value.trim() : '';
+    if (v.length >= 16 && v.length <= 64) lanToken = v;
   }
 
   /// Lokal serverga o'tilgan vaqt oynasi: bulut javob bermagach 2 daqiqa
