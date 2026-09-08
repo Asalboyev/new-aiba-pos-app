@@ -42,7 +42,14 @@ const _splitMethods = [
 
 class _PaymentDialogState extends State<PaymentDialog> {
   final List<Payment> _parts = [];
-  late PaymentMethod _method = widget.initialMethod ?? PaymentMethod.cash;
+  // Umumiy «Karta» bilan ochilsa ham UzCard'dan boshlanadi: tushum ikki
+  // tarmoq bo'yicha alohida hisoblanadi, shuning uchun kassir doim
+  // aniq tarmoqni tanlaydi (F1 — UzCard, F2 — Humo).
+  late PaymentMethod _method = switch (widget.initialMethod) {
+    null => PaymentMethod.cash,
+    PaymentMethod.card => PaymentMethod.uzcard,
+    final m => m,
+  };
   late final TextEditingController _amount =
       TextEditingController(text: ThousandsInputFormatter.format(widget.total));
 
@@ -267,6 +274,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                     child: _MethodTile(
                       iconAsset: 'assets/icons/pay_card.svg',
                       label: 'UzCard',
+                      hotkey: 'F1',
                       selected: _method == PaymentMethod.uzcard,
                       onTap: () => _selectMethod(PaymentMethod.uzcard),
                     ),
@@ -276,6 +284,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                     child: _MethodTile(
                       iconAsset: 'assets/icons/pay_card.svg',
                       label: 'Humo',
+                      hotkey: 'F2',
                       selected: _method == PaymentMethod.humo,
                       onTap: () => _selectMethod(PaymentMethod.humo),
                     ),
@@ -492,11 +501,16 @@ class _MethodTile extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.hotkey,
   });
   final String iconAsset;
   final String label;
   final bool selected;
   final VoidCallback onTap;
+
+  /// Plitka ustidagi klavisha belgisi («F1»). Kassir mishkasiz ishlaydi —
+  /// qaysi tugma qaysi to'lov turini tanlashi KO'RINIB tursin.
+  final String? hotkey;
 
   @override
   Widget build(BuildContext context) {
@@ -514,6 +528,21 @@ class _MethodTile extends StatelessWidget {
         // sig'ishi kerak — yozuv joyiga qarab qisqaradi, chetga chiqmaydi.
         padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          if (hotkey != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: selected ? const Color(0x33FFFFFF) : const Color(0x14FFFFFF),
+                borderRadius: BorderRadius.circular(5),
+              ),
+              child: Text(hotkey!,
+                  style: TextStyle(
+                      color: selected ? Colors.white : const Color(0xFF8A9098),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700)),
+            ),
+            const SizedBox(width: 7),
+          ],
           SvgPicture.asset(iconAsset,
               width: 20,
               height: 20,

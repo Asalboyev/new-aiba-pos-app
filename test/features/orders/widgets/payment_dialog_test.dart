@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:aiba_pos_terminal/features/orders/domain/entities/payment_method.dart';
@@ -60,4 +61,57 @@ void main() {
     expect(find.textContaining("Bo'lib to'lash: 25 600 so'm"), findsOneWidget);
     expect(find.text('Qoldi:'), findsOneWidget);
   });
+
+  // ── KLAVIATURA: F1 — UzCard, F2 — Humo ────────────────────────────────────
+  // Kassir mishkasiz ishlaydi: kartaga o'tganda ikki tarmoq orasida
+  // klavisha bilan tanlash kerak, va qaysi tugma ekanini plitkada ko'rsin.
+  testWidgets('F1 — UzCard, F2 — Humo (tanlov va belgilar)', (tester) async {
+    await open(tester, 45600, PaymentMethod.card);
+
+    // Plitkalarda klavisha belgilari ko'rinadi.
+    expect(find.text('F1'), findsOneWidget);
+    expect(find.text('F2'), findsOneWidget);
+    expect(find.text('UzCard'), findsOneWidget);
+    expect(find.text('Humo'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+    await tester.pumpAndSettle();
+    expect(_selectedTile(tester, 'Humo'), isTrue, reason: 'F2 → Humo');
+    expect(_selectedTile(tester, 'UzCard'), isFalse);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.f1);
+    await tester.pumpAndSettle();
+    expect(_selectedTile(tester, 'UzCard'), isTrue, reason: 'F1 → UzCard');
+    expect(_selectedTile(tester, 'Humo'), isFalse);
+  });
+
+  testWidgets('naqddan F1 bosilsa kartaga (UzCard) o\'tadi', (tester) async {
+    await open(tester, 45600, PaymentMethod.cash);
+    expect(find.text('UzCard'), findsNothing); // naqdda plitkalar yo'q
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.f1);
+    await tester.pumpAndSettle();
+    expect(_selectedTile(tester, 'UzCard'), isTrue);
+  });
+
+  testWidgets('F1/F2 tanlangan usul chekka O\'SHA nom bilan tushadi',
+      (tester) async {
+    await open(tester, 45600, PaymentMethod.card);
+    await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+    await tester.pumpAndSettle();
+    // Pastdagi yordam qatori ham shu klavishalarni aytadi.
+    expect(find.textContaining('F1 UzCard'), findsOneWidget);
+    expect(find.textContaining('F2 Humo'), findsOneWidget);
+  });
+}
+
+/// Plitka tanlanganmi — foni ko'k (PosColors.blue) bo'lsa tanlangan.
+bool _selectedTile(WidgetTester tester, String label) {
+  final tile = find.ancestor(
+    of: find.text(label),
+    matching: find.byType(Container),
+  );
+  final c = tester.widgetList<Container>(tile).first;
+  final d = c.decoration as BoxDecoration;
+  return d.color == const Color(0xFF2277EA);
 }

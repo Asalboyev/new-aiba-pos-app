@@ -45,7 +45,27 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
   ];
   int _provider = 0;
 
+  /// Oyna klavishalarini (F1/F2/Enter/Esc) ushlaydigan tugun. Skaner maydoni
+  /// YASHIRINGANDA fokus shu yerga qaytariladi: aks holda Uzumga o'tgach
+  /// klaviatura umuman ishlamay qolardi va Click'ga qaytib bo'lmasdi.
+  final FocusNode _keys = FocusNode(debugLabel: 'qr-dialog-keys');
+
   /// Backend'ga yuboriladigan provider kodi.
+  /// Provayder almashdi: Click'da skaner maydoniga, Uzumda oynaning o'ziga
+  /// fokus beriladi — klaviatura ikkala holatda ham ishlaydi.
+  void _pickProvider(int i) {
+    if (_processing) return;
+    setState(() => _provider = i);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (widget.scanMode && i == 0) {
+        _scanFocus.requestFocus();
+      } else {
+        _keys.requestFocus();
+      }
+    });
+  }
+
   String get _providerCode => _provider == 0 ? 'click' : 'uzum';
   String get _providerName => _providers[_provider].$1;
 
@@ -92,6 +112,7 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
 
   @override
   void dispose() {
+    _keys.dispose();
     _scan.dispose();
     _scanFocus.dispose();
     _amountCtl.dispose();
@@ -194,15 +215,16 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
         // (statik rejim), Esc — bekor. autofocus SHART: statik rejimda hech
         // qaysi maydon fokus olmaydi, usiz Enter/Esc umuman ushlanmaydi.
         child: Focus(
+          focusNode: _keys,
           autofocus: true,
           onKeyEvent: (node, event) {
             if (event is! KeyDownEvent) return KeyEventResult.ignored;
             if (event.logicalKey == LogicalKeyboardKey.f1) {
-              if (!_processing) setState(() => _provider = 0);
+              _pickProvider(0);
               return KeyEventResult.handled;
             }
             if (event.logicalKey == LogicalKeyboardKey.f2) {
-              if (!_processing) setState(() => _provider = 1);
+              _pickProvider(1);
               return KeyEventResult.handled;
             }
             if (event.logicalKey == LogicalKeyboardKey.escape) {
@@ -332,20 +354,11 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
                       Expanded(
                         child: _ProviderTile(
                           label: _providers[i].$1,
+                          hotkey: 'F${i + 1}',
                           icon: _providers[i].$2,
                           brand: _providers[i].$3,
                           selected: _provider == i,
-                          onTap: _processing
-                              ? null
-                              : () {
-                                  setState(() => _provider = i);
-                                  // Clickka qaytilsa skaner darhol tayyor
-                                  // bo'lsin (Uzumda maydon yashirin).
-                                  if (widget.scanMode && i == 0) {
-                                    WidgetsBinding.instance.addPostFrameCallback(
-                                        (_) => _scanFocus.requestFocus());
-                                  }
-                                },
+                          onTap: _processing ? null : () => _pickProvider(i),
                         ),
                       ),
                       if (i < _providers.length - 1) const SizedBox(width: 10),
@@ -489,7 +502,11 @@ class _ProviderTile extends StatelessWidget {
     required this.brand,
     required this.selected,
     required this.onTap,
+    this.hotkey,
   });
+
+  /// Plitka ustidagi klavisha belgisi («F1») — kassir mishkasiz ishlaydi.
+  final String? hotkey;
   final String label;
   final IconData icon;
   final Color brand;
@@ -514,7 +531,7 @@ class _ProviderTile extends StatelessWidget {
           children: [
             Icon(icon, color: selected ? Colors.white : brand, size: 22),
             const SizedBox(height: 4),
-            Text(label,
+            Text(hotkey == null ? label : '$hotkey · $label',
                 style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,
