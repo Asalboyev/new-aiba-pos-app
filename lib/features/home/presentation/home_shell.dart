@@ -37,7 +37,12 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   /// Kassir faqat savdo qiladi: Ish vaqti bo'limi ko'rinmaydi, smena bilan
   /// bog'liq hamma ish (ochish/yopish/hisobot) menejerda.
   bool get _isManager =>
-      (ref.read(sessionProvider)?.staff.role ?? '') != 'cashier';
+      (ref.read(sessionProvider)?.staff.role ?? '') != 'cashier' && !_isOrderTaker;
+
+  /// BUYURTMACHI — faqat «Yetkazib berish» bo'limi bilan ishlaydi.
+  /// Kassa, ish vaqti va sozlamalar unga ochilmaydi (serverda ham yopiq).
+  bool get _isOrderTaker =>
+      (ref.read(sessionProvider)?.staff.role ?? '') == 'zakazchik';
 
   /// F10 — bo'limlar orasida aylanish: Mahsulotlar → Ish vaqti →
   /// Yetkazib berish → Sozlamalar → Mahsulotlar. Kassir mishka ishlatmaydi,
@@ -52,7 +57,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     if (_index == 0 && ref.read(cartProvider).items.isNotEmpty) return false;
     // Kassirda Ish vaqti (1) va Sozlamalar (3) bo'limlari yo'q — aylanishda
     // o'tkazib yuboriladi.
-    final order = _isManager ? const [0, 1, 2, 3] : const [0, 2];
+    final order = _isOrderTaker
+        ? const [2]
+        : (_isManager ? const [0, 1, 2, 3] : const [0, 2]);
     final i = order.indexOf(_index);
     final next = order[(i < 0 ? 0 : i + 1) % order.length];
     setState(() => _index = next);
@@ -126,7 +133,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   Widget _content() {
     // Kassir Ish vaqti (1) va Sozlamalar (3) bo'limlariga kira olmaydi —
     // tanlansa savdoga qaytadi.
-    final idx = (!_isManager && (_index == 1 || _index == 3)) ? 0 : _index;
+    // Buyurtmachida FAQAT yetkazib berish bo'limi bo'ladi.
+    final idx = _isOrderTaker
+        ? 2
+        : ((!_isManager && (_index == 1 || _index == 3)) ? 0 : _index);
     switch (idx) {
       case 1:
         return const ShiftScreen();
@@ -154,8 +164,13 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         // Kassir smenani ocha olmaydi — menejerni kutish xabari, tugmasiz.
         final guardMsg = _isManager
             ? null
-            : 'Smenani menejer ochadi. Menejer smenani boshlagach savdo '
-                'avtomatik ochiladi.';
+            : _isOrderTaker
+                // Buyurtma tasdiqlanganda chek yoziladi — u ochiq smenaga
+                // tushishi kerak, shuning uchun kassa smenasi shart.
+                ? 'Smenani kassir/menejer ochadi. Smena ochilgach onlayn '
+                    'buyurtmalar avtomatik ko\'rinadi.'
+                : 'Smenani menejer ochadi. Menejer smenani boshlagach savdo '
+                    'avtomatik ochiladi.';
         // Internet uzilganda (sync har 60 s smena holatini qayta so'raydi)
         // OXIRGI MA'LUM holat saqlanadi (skipError/skipLoadingOnReload) —
         // savdo ekrani «Qayta urinish» ga almashib qolmaydi. Ma'lum holat

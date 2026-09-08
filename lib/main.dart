@@ -78,7 +78,8 @@ class _AibaPosAppState extends ConsumerState<AibaPosApp> {
     ref.listen(sessionProvider, (prev, next) {
       if (!Platform.isWindows) return;
       final lan = ref.read(lanServiceProvider);
-      if (next != null && next.staff.role != 'kitchen') {
+      const clients = {'kitchen', 'zakazchik'};
+      if (next != null && !clients.contains(next.staff.role)) {
         lan.start();
       } else if (next == null) {
         lan.stop();
@@ -115,7 +116,12 @@ class _AibaPosAppState extends ConsumerState<AibaPosApp> {
               : session != null
                   ? (session.staff.role == 'kitchen'
                       ? const KitchenScreen()
-                      : const HomeShell())
+                      // BUYURTMACHI — oshpaz kabi alohida ish o'rni: faqat
+                      // onlayn buyurtmalar ekrani (kassa, ombor, hisobot
+                      // yopiq). Yangi buyurtma qabul qilinmasa ovoz beradi.
+                      : session.staff.role == 'zakazchik'
+                          ? const HomeShell(initialIndex: 2)
+                          : const HomeShell())
                   // Birinchi o'rnatish: terminal sozlanmagan bo'lsa — setup
                   // (Sozlamalar). Save'dan keyin login'ga o'tadi.
                   : (configured

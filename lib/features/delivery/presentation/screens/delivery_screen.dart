@@ -223,6 +223,17 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   /// Buyurtmalar POS'dan keladi (AIBA TEZKOR / Yandex / Uzum). Ilova
   /// hech narsa o'ylab chiqarmaydi — faqat ko'rsatadi va harakat yuboradi.
   List<DOrder> _orders = const [];
+
+  /// Kanal filtri: `''` — hammasi, aks holda `aiba_tezkor` / `uzum` / `yandex`.
+  /// Buyurtmachi har tizimni ALOHIDA ko'rishi kerak — aralashib ketmasin.
+  String _channel = '';
+
+  /// QABUL QILINMAGAN BUYURTMA SIGNALI. Yangi buyurtma tushib, hech kim
+  /// qabul qilmasa har 5 soniyada ovoz beradi — buyurtmachi boshqa ish
+  /// bilan band bo'lsa ham eshitadi (agregator tasdiqlanmagan buyurtmani
+  /// bir necha daqiqada bekor qiladi).
+  Timer? _alarm;
+  bool _muted = false;
   DOrder? _selected;
   Timer? _tick;
   int _accept = 15;
@@ -230,11 +241,39 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   @override
   void dispose() {
+    _alarm?.cancel();
     _tick?.cancel();
     super.dispose();
   }
 
-  List<DOrder> _byStage(DStage s) => _orders.where((o) => o.stage == s).toList();
+  List<DOrder> get _visible => _channel.isEmpty
+      ? _orders
+      : _orders.where((o) => o.channelKey == _channel).toList();
+
+  List<DOrder> _byStage(DStage s) =>
+      _visible.where((o) => o.stage == s).toList();
+
+  /// Hali qabul qilinmagan (yangi) buyurtmalar — signal shular uchun.
+  List<DOrder> get _unaccepted =>
+      _orders.where((o) => o.stage == DStage.yangi).toList();
+
+  /// Signalni holatga qarab yoqadi/o'chiradi.
+  void _syncAlarm() {
+    final need = _unaccepted.isNotEmpty && !_muted;
+    if (need && _alarm == null) {
+      SystemSound.play(SystemSoundType.alert);
+      _alarm = Timer.periodic(const Duration(seconds: 5), (_) {
+        if (!mounted || _muted || _unaccepted.isEmpty) return;
+        SystemSound.play(SystemSoundType.alert);
+      });
+    } else if (!need && _alarm != null) {
+      _alarm?.cancel();
+      _alarm = null;
+    }
+    // Hamma buyurtma qabul qilingach «ovozsiz» belgisi o'zi tushadi —
+    // keyingi yangi buyurtmada signal yana ishlaydi.
+    if (_unaccepted.isEmpty && _muted) _muted = false;
+  }
 
   void _open(DOrder o) {
     _tick?.cancel();
@@ -320,6 +359,9 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     // o'zgarsa ekran o'zi yangilanadi (8 soniyada bir so'raladi).
     final st = ref.watch(deliveryProvider);
     _orders = [for (final d in st.orders) _toDOrder(d)];
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _syncAlarm();
+    });
     // Ochiq kartochka ham yangilanib turishi kerak (holat/kurer o'zgarsa).
     if (_selected != null) {
       _selected = _orders.firstWhere((o) => o.id == _selected!.id,
@@ -353,6 +395,51 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   // ─────────── Kanban ───────────
 
+  /// Kanal tanlash chizig'i: har tizim ALOHIDA ko'rinadi (aralashmasin),
+  /// yonida qabul qilinmagan buyurtmalar soni. O'ngda — signalni o'chirish.
+  Widget _channelBar() {
+    int cnt(String ch) => ch.isEmpty
+        ? _orders.length
+        : _orders.where((o) => o.channelKey == ch).length;
+    int newCnt(String ch) => _orders
+        .where((o) => o.stage == DStage.yangi && (ch.isEmpty || o.channelKey == ch))
+        .length;
+    const tabs = [
+      ('', 'Hammasi'),
+      ('aiba_tezkor', 'AIBA TEZKOR'),
+      ('uzum', 'Uzum Tezkor'),
+      ('yandex', 'Yandex'),
+    ];
+    return Row(children: [
+      for (final t in tabs) ...[
+        _ChannelTab(
+          label: t.$2,
+          total: cnt(t.$1),
+          fresh: newCnt(t.$1),
+          selected: _channel == t.$1,
+          onTap: () => setState(() => _channel = t.$1),
+        ),
+        const SizedBox(width: 8),
+      ],
+      const Spacer(),
+      if (_unaccepted.isNotEmpty)
+        TextButton.icon(
+          onPressed: () => setState(() {
+            _muted = !_muted;
+            _syncAlarm();
+          }),
+          icon: Icon(_muted ? Icons.volume_off : Icons.volume_up,
+              size: 18, color: _muted ? _w42 : _amber),
+          label: Text(
+            _muted
+                ? 'Signal o\'chirilgan'
+                : '${_unaccepted.length} ta qabul qilinmagan',
+            style: TextStyle(color: _muted ? _w42 : _amber, fontSize: 13),
+          ),
+        ),
+    ]);
+  }
+
   Widget _board() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -381,7 +468,9 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
         const SizedBox(height: 8),
         const Text('Buyurtmalarni tez va qulay boshqaring',
             style: TextStyle(color: _w42, fontSize: 14)),
-        const SizedBox(height: 20),
+        const SizedBox(height: 14),
+        _channelBar(),
+        const SizedBox(height: 14),
         // Ustunlar ekran kengligiga moslashadi. Sig'sa — Expanded bilan
         // teng bo'linadi (oshib ketishi MUMKIN EMAS, o'ng tomon bo'sh
         // qolmaydi); sig'masa — gorizontal scroll (Figma 284px).
@@ -1291,6 +1380,64 @@ class _SmallButton extends StatelessWidget {
                   color: textColor,
                   fontSize: 12,
                   fontWeight: FontWeight.w600)),
+        ]),
+      ),
+    );
+  }
+}
+
+
+/// Kanal tugmasi: nomi, jami soni va QABUL QILINMAGAN buyurtmalar nishoni.
+class _ChannelTab extends StatelessWidget {
+  const _ChannelTab({
+    required this.label,
+    required this.total,
+    required this.fresh,
+    required this.selected,
+    required this.onTap,
+  });
+  final String label;
+  final int total;
+  final int fresh;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: selected ? _btnBlue : Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+              color: selected ? _btnBlue : Colors.white.withValues(alpha: 0.10)),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(label,
+              style: TextStyle(
+                  color: selected ? Colors.white : _w42,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(width: 8),
+          Text('$total',
+              style: TextStyle(
+                  color: selected ? Colors.white70 : _w42, fontSize: 13)),
+          if (fresh > 0) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                  color: _amber, borderRadius: BorderRadius.circular(999)),
+              child: Text('$fresh',
+                  style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800)),
+            ),
+          ],
         ]),
       ),
     );
