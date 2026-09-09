@@ -74,7 +74,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final i = order.indexOf(_index);
     final next = order[(i < 0 ? 0 : i + 1) % order.length];
     setState(() => _index = next);
-    const names = ['Mahsulotlar', 'Ish vaqti', 'Yetkazib berish', 'Sozlamalar'];
+    const names = [
+      'Mahsulotlar', 'Ish vaqti', 'Online buyurtmalar', 'Sozlamalar',
+    ];
     _toast(names[next]);
     return true;
   }
@@ -275,11 +277,18 @@ class _HomeShellState extends ConsumerState<HomeShell> {
               settingsSelected: _index == 3,
               deliveryBadge: pending,
               showProducts: !_isOrderTaker,
-              channels: [
-                ('aiba_tezkor', 'AIBA\nTEZKOR', fresh['aiba_tezkor'] ?? 0),
-                ('uzum', 'Uzum\nTezkor', fresh['uzum'] ?? 0),
-                ('yandex', 'Yandex', fresh['yandex'] ?? 0),
-              ],
+              // KANALLAR FAQAT BUYURTMACHIDA alohida bo'lim bo'ladi — u kun
+              // bo'yi shu bilan ishlaydi, tizimlar aralashib ketmasin.
+              // Kassir va menejerda esa BITTA «Online buyurtmalar» bo'limi:
+              // ular uchun bu asosiy ish emas, uchta ikonka menyuni band
+              // qilib turardi (kanal ekran ichida filtrlanadi).
+              channels: _isOrderTaker
+                  ? [
+                      ('aiba_tezkor', 'AIBA\nTEZKOR', fresh['aiba_tezkor'] ?? 0),
+                      ('uzum', 'Uzum\nTezkor', fresh['uzum'] ?? 0),
+                      ('yandex', 'Yandex', fresh['yandex'] ?? 0),
+                    ]
+                  : const [],
               selectedChannel: _index == 2 ? channel : null,
               onChannel: (c) {
                 ref.read(deliveryChannelProvider.notifier).state = c;

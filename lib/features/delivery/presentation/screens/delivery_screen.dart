@@ -294,7 +294,19 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       _orders.where((o) => o.stage == DStage.yangi).toList();
 
   /// Signalni holatga qarab yoqadi/o'chiradi.
+  ///
+  /// OVOZ FAQAT BUYURTMACHIDA. Kassir zal savdosi bilan band — uning
+  /// ekranida har 5 soniyada signal ishlashi xalaqit berardi; menejer ham
+  /// online buyurtmani kuzatib turmaydi. Buyurtmachi esa aynan shu ish
+  /// bilan o'tiradi: agregator tasdiqlanmagan buyurtmani bir necha
+  /// daqiqada bekor qiladi, shuning uchun signal unga kerak.
+  /// Ro'yxat va «ovozsiz» tugmasi hammada ko'rinadi — faqat OVOZ yopiladi.
   void _syncAlarm() {
+    if (!_isOrderTaker) {
+      _alarm?.cancel();
+      _alarm = null;
+      return;
+    }
     final need = _unaccepted.isNotEmpty && !_muted;
     if (need && _alarm == null) {
       playAlarm();
@@ -355,22 +367,24 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       DStage.yolda => await n.setStatus(o.id, 'delivered'),
       _ => null,
     };
+    // Tasdiqlashdan qaytgan matn XATO emas, OGOHLANTIRISH bo'lishi mumkin:
+    // chek yozilgan, lekin taom tugagan yoki narx farq qilgan. Xato qizil,
+    // ogohlantirish sariq — kassir ikkisini ajratishi kerak.
+    final warn = err != null && err.startsWith(warnMark);
     // TASDIQLANGAN buyurtma cheki DARHOL chiqadi: yig'uvchi qaysi tizimdan
     // (Uzum Tezkor / Yandex / AIBA TEZKOR), qaysi ovqatlar va kimga
     // ekanini qog'ozda ko'radi — og'zaki aytish va paket adashishi tugaydi.
-    if (wasNew && err == null) {
+    //
+    // OGOHLANTIRISH CHEKNI BLOKLAMAYDI: buyurtma tasdiqlandi, chek yozildi
+    // va to'landi — qog'oz chiqishi kerak. Ilgari bitta sariq ogohlantirish
+    // (masalan yetkazish puli bor har bir buyurtmadagi «narx farqi») chop
+    // etishni butunlay to'xtatib qo'yardi.
+    if (wasNew && (err == null || warn)) {
       unawaited(_printDelivery(o));
     }
     if (!mounted) return;
     setState(() => _busy = false);
     if (err != null) {
-      // Tasdiqlashdan qaytgan matn XATO emas, OGOHLANTIRISH bo'lishi
-      // mumkin: chek yozilgan, lekin taom tugagan yoki narx farq qilgan.
-      // Xato qizil, ogohlantirish sariq — kassir ikkisini ajratishi kerak.
-      final warn = wasNew &&
-          (err.contains('TUGAGAN') ||
-              err.contains('Chekka tushmadi') ||
-              err.contains('Narx farqi'));
       _toast(err, warning: warn);
     }
   }
@@ -486,10 +500,12 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   // ─────────── Kanban ───────────
 
-  /// BUYURTMACHI rejimi: har tizim CHAP MENYUda alohida bo'lim, shuning
-  /// uchun ekran tepasidagi tab chizig'i ikkilanish bo'lardi — u
-  /// ko'rsatilmaydi (signal tugmasi esa QOLADI, u ishning bir qismi).
-  bool get _tabsHidden =>
+  /// BUYURTMACHI rejimi. Ikki narsani belgilaydi:
+  ///   • ekran tepasidagi kanal tabi KO'RSATILMAYDI — chap menyuda har tizim
+  ///     allaqachon alohida bo'lim, ikkilanish bo'lardi;
+  ///   • yangi buyurtma SIGNALI faqat shu rejimda ishlaydi.
+  /// Kassir/menejer esa bitta «Online buyurtmalar» bo'limida, tab bilan.
+  bool get _isOrderTaker =>
       (ref.watch(sessionProvider)?.staff.role ?? '') == 'zakazchik';
 
   /// Kanal tanlash chizig'i: har tizim ALOHIDA ko'rinadi (aralashmasin),
@@ -508,7 +524,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       ('yandex', 'Yandex'),
     ];
     return Row(children: [
-      if (!_tabsHidden)
+      if (!_isOrderTaker)
         for (final t in tabs) ...[
           _ChannelTab(
             label: t.$2,

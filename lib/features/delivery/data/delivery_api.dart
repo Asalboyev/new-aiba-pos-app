@@ -43,6 +43,16 @@ String channelLabel(String? ch) => switch (ch) {
       _ => 'AIBA TEZKOR',
     };
 
+/// Tasdiqlash javobidagi OGOHLANTIRISH belgisi (xato emas).
+///
+/// `confirm` bitta `String?` qaytaradi: `null` — hammasi silliq, sentinelsiz
+/// matn — HAQIQIY xato (chek yozilmadi), sentinelli matn — chek yozildi,
+/// lekin kassir bilishi kerak bo'lgan narsa bor (taom tugagan, qator chekka
+/// tushmadi, narx farqi). Ilgari ekran buni matn ichidan qidirardi
+/// («TUGAGAN», «Narx farqi» …) va bitta ogohlantirish CHEKNI CHOP ETISHNI
+/// bloklab qo'yardi.
+const warnMark = '\u26a0 ';
+
 class DlvItem {
   const DlvItem({
     required this.name,
@@ -364,7 +374,10 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
         final amt = (d['amount'] as num?)?.round();
         warn.add("Narx farqi: chek $amt, tashqi tizimda $ext");
       }
-      return warn.isEmpty ? null : warn.join(' · ');
+      // OGOHLANTIRISH, XATO EMAS: chek yozildi va to'landi. Sentinel bilan
+      // belgilanadi — ekran shu bo'yicha «chekni chop et, faqat sariq toast
+      // ko'rsat» degan qarorni matn qidirmasdan qabul qiladi.
+      return warn.isEmpty ? null : '$warnMark${warn.join(' · ')}';
     } catch (e) {
       await load(silent: true);
       return _errText(e);

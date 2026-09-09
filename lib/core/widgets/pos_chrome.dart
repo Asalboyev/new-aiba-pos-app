@@ -44,7 +44,8 @@ class PosNavRail extends StatelessWidget {
   /// Yetkazib berish KANALLARI — har tizim menyuda ALOHIDA bo'lim
   /// bo'ladi (Mahsulotlar ostida: AIBA TEZKOR → Uzum Tezkor → Yandex).
   /// Buyurtmachi aralashtirmasligi uchun shunday: `(kalit, nom, yangi soni)`.
-  /// Bo'sh bo'lsa eski ko'rinish — bitta «Yetkazib berish» bo'limi.
+  /// Bo'sh bo'lsa bitta «Online buyurtmalar» bo'limi (kassir/menejer):
+  /// uchta kanal shu ekran ichida filtrlanadi.
   final List<(String, String, int)> channels;
 
   /// Tanlangan kanal kaliti (`''` — hammasi). `null` — yetkazib berish
@@ -100,7 +101,7 @@ class PosNavRail extends StatelessWidget {
           if (channels.isEmpty)
             _NavItem(
               iconAsset: 'assets/icons/nav_delivery.svg',
-              label: 'Yetkazib\nberish',
+              label: 'Online\nbuyurtmalar',
               selected: selectedIndex == 2,
               onTap: () => onSelect(2),
               badge: deliveryBadge,
