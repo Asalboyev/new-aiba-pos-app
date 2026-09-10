@@ -11,6 +11,7 @@ import '../../../menu/domain/entities/product.dart';
 import '../../../menu/presentation/providers/menu_providers.dart';
 import '../providers/cart_provider.dart';
 import '../../domain/scan_match.dart';
+import 'assign_barcode_dialog.dart';
 import 'qty_dialog.dart';
 import 'scan_label_dialog.dart';
 
@@ -122,6 +123,33 @@ Future<void> _submitSearch(BuildContext context, WidgetRef ref,
     CartNotifier cart, String raw) async {
   if (raw.isEmpty) return;
 
+  // ── MARKIROVKA (DataMatrix, «Asl belgisi») ──────────────────────────────
+  // Shisha qopqog'idagi kod HAR DONA uchun boshqacha: GS1 satrida mahsulot
+  // kodi (AI 01 — GTIN, hamma Cola 0,5 da BIR XIL) va shu donaning SERIYASI
+  // (AI 21 — takrorlanmas) birga keladi. Mahsulotga faqat GTIN biriktiriladi,
+  // seriya esa shu chekka «label» bo'lib ketadi (soliqqa aynan shu ketadi).
+  //
+  // Ilgari bu tarmoq YO'Q edi: kodda harflar borligi uchun u «sof raqam»
+  // shartiga tushmasdi va NOM bo'yicha qidiruvga o'tib ketardi — kassir
+  // skaner qilsa hech nima qo'shilmasdi, F2 ni bosishga majbur edi.
+  if (looksLikeMarkingCode(raw)) {
+    final all0 = ref.read(productsProvider).maybeWhen(
+          data: (p) => p,
+          orElse: () => const <Product>[],
+        );
+    // Skaner ruscha klaviatura tilida yozgan bo'lsa seriya kirillga
+    // aylanadi — soliqqa buzuq kod ketmasin (scan_match.fixScanLayout).
+    final label = fixScanLayout(raw);
+    var hit = matchScan(all0, raw);
+    hit ??= await AssignBarcodeDialog.show(context, normalizeScan(raw),
+        allowMarked: true);
+    if (hit == null || !context.mounted) return;
+    cart.addProduct(hit, label: label);
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('✓ ${hit.name} savatga qo\'shildi (markirovka)')));
+    return;
+  }
+
   // SOF RAQAM + Enter = oxirgi qo'shilgan mahsulot MIQDORI.
   // (Agar aynan shu raqamli kodli mahsulot bo'lsa — u ustun turadi.)
   final pureNum = RegExp(r'^\d+([.,]\d+)?$').hasMatch(raw);
@@ -135,13 +163,14 @@ Future<void> _submitSearch(BuildContext context, WidgetRef ref,
     // oxirgi qator miqdori 4 780 000 000 000 bo'lib qolardi.
     final digits = raw.replaceAll(RegExp(r'[^\d]'), '');
     if (digits.length >= 8) {
-      final hit = matchScan(all0, raw);
-      if (hit != null) {
-        cart.addProduct(hit);
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Shtrix-kod topilmadi — F2 (skaner) orqali biriktiring')));
+      var hit = matchScan(all0, raw);
+      // Kod hali biriktirilmagan bo'lsa — F2 ga yubormaymiz, shu yerda
+      // mahsulotni tanlash oynasini ochamiz (bir marta, keyin o'zi topadi).
+      hit ??= await AssignBarcodeDialog.show(context, normalizeScan(raw));
+      if (hit == null || !context.mounted) return;
+      // Markirovkali mahsulot oddiy EAN bilan o'qilsa ham chek markirovkasiz
+      // qolmasin — kod label sifatida biriktiriladi.
+      cart.addProduct(hit, label: hit.markingRequired ? raw : null);
       return;
     }
     final hasExactSku =

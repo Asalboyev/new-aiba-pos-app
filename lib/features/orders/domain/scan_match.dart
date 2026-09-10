@@ -27,6 +27,30 @@ String normalizeScan(String raw) {
   return code;
 }
 
+/// USB skaner klaviatura kabi yozadi — Windows/macOS'da tilni RUSCHAGA
+/// qo'yib qo'yilgan bo'lsa, u yuborgan LOTIN belgilari kirillga aylanib
+/// tushadi: `7_!*QP9J1IUVN93TFVI` o'rniga `7_!*йП9ж1ЙУВт93ефьш`.
+/// GTIN (raqamlar) buzilmaydi — mahsulot baribir topiladi, LEKIN chekka va
+/// soliqqa ketadigan markirovka SERIYASI buzilgan bo'ladi.
+///
+/// Shuning uchun kirill harflari klaviaturadagi O'RNI bo'yicha lotinga
+/// qaytariladi. Markirovka seriyasi hech qachon kirillcha bo'lmaydi, demak
+/// bu almashtirish xavfsiz.
+const _ru = 'йцукенгшщзхъфывапролджэячсмитьбю.ё'
+    'ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧСМИТЬБЮ,Ё';
+const _en = "qwertyuiop[]asdfghjkl;'zxcvbnm,./`"
+    'QWERTYUIOP{}ASDFGHJKL:"ZXCVBNM<>?~';
+
+String fixScanLayout(String raw) {
+  if (!RegExp(r'[\u0400-\u04FF]').hasMatch(raw)) return raw;
+  final b = StringBuffer();
+  for (final ch in raw.split('')) {
+    final i = _ru.indexOf(ch);
+    b.write(i >= 0 ? _en[i] : ch);
+  }
+  return b.toString();
+}
+
 /// Markirovka (DataMatrix) kodi — GS1 `01` bilan boshlanadi va 16+ belgi.
 bool looksLikeMarkingCode(String raw) {
   final c = raw.replaceAll(RegExp(r'[\s\-]'), '');

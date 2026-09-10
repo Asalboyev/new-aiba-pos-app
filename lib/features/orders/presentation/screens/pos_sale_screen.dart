@@ -812,7 +812,11 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
     // bo'lsa ham label saqlanadi: admin belgilashni unutgani chekni
     // markirovkasiz qoldirmasin.
     final withLabel = hit.markingRequired || isMark;
-    ref.read(cartProvider.notifier).addProduct(hit, label: withLabel ? code : null);
+    // Skaner ruscha klaviatura tilida yozgan bo'lsa markirovka seriyasi
+    // kirillga aylanadi — soliqqa buzuq kod ketmasin.
+    ref
+        .read(cartProvider.notifier)
+        .addProduct(hit, label: withLabel ? fixScanLayout(code) : null);
     if (context.mounted) {
       _toast(context,
           '✓ ${hit.name} savatga qo\'shildi${withLabel ? ' (markirovka)' : ''}');
