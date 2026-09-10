@@ -5,6 +5,7 @@ import '../../../../core/errors/failure.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../menu/domain/entities/product.dart';
 import '../../../menu/presentation/providers/menu_providers.dart';
+import '../../domain/scan_match.dart';
 import '../providers/sync_service.dart';
 
 /// Skaner kodi bazada topilmadi → kassir mahsulotni tanlaydi, kod unga
@@ -32,9 +33,34 @@ class AssignBarcodeDialog extends ConsumerStatefulWidget {
 }
 
 class _AssignBarcodeDialogState extends ConsumerState<AssignBarcodeDialog> {
+  final _ctl = TextEditingController();
   String _q = '';
   String? _busyId;
   String? _err;
+  /// Qidiruv maydoniga SKANER yozganda ko'rsatiladigan eslatma.
+  bool _scanIntoSearch = false;
+
+  @override
+  void dispose() {
+    _ctl.dispose();
+    super.dispose();
+  }
+
+  /// Maydon avtomatik fokusda turadi, kassir esa odatda kodni YANA bir marta
+  /// o'qitadi — o'shanda butun GS1 satri qidiruv matni bo'lib qolar va
+  /// «Mos mahsulot yo'q» chiqardi (mahsulot nomi kodga mos kelmaydi).
+  /// Skaner kodini qidiruv deb qabul qilmaymiz: maydonni tozalaymiz va nima
+  /// qilish kerakligini aytamiz.
+  void _onQuery(String v) {
+    final scanned = looksLikeMarkingCode(v) ||
+        (normalizeScan(v).isNotEmpty && normalizeScan(v) == normalizeScan(widget.code));
+    if (scanned) {
+      _ctl.clear();
+      setState(() { _q = ''; _scanIntoSearch = true; });
+      return;
+    }
+    setState(() { _q = v; _scanIntoSearch = false; });
+  }
 
   Future<void> _pick(Product p) async {
     if (_busyId != null) return;
@@ -102,8 +128,9 @@ class _AssignBarcodeDialogState extends ConsumerState<AssignBarcodeDialog> {
               ),
               const SizedBox(height: 14),
               TextField(
+                controller: _ctl,
                 autofocus: true,
-                onChanged: (v) => setState(() => _q = v),
+                onChanged: _onQuery,
                 style: const TextStyle(color: Colors.white, fontSize: 15),
                 decoration: InputDecoration(
                   isDense: true,
@@ -123,14 +150,25 @@ class _AssignBarcodeDialogState extends ConsumerState<AssignBarcodeDialog> {
                   ),
                 ),
               ),
+              if (_scanIntoSearch) ...[
+                const SizedBox(height: 6),
+                const Text(
+                  'Kod allaqachon o\'qilgan — qayta skanerlash shart emas. '
+                  'Mahsulot NOMINI yozing va ro\'yxatdan tanlang.',
+                  style: TextStyle(color: Color(0xFFE0A030), fontSize: 12),
+                ),
+              ],
               const SizedBox(height: 10),
               Flexible(
                 child: list.isEmpty
-                    ? const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 24),
-                        child: Text('Mos mahsulot yo\'q',
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Text(
+                            q.isEmpty
+                                ? 'Menyuda mahsulot yo\'q'
+                                : '«$_q» bo\'yicha topilmadi — nomini boshqacha yozing',
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: Color(0xFF8A9098))),
+                            style: const TextStyle(color: Color(0xFF8A9098))),
                       )
                     : ListView.separated(
                         shrinkWrap: true,
