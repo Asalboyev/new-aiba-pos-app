@@ -41,7 +41,14 @@ class CartItem extends Equatable {
   /// Line total = price × qty.
   num get lineTotal => price * qty;
 
-  bool get needsMoreLabels => markingRequired && labels.length < qty;
+  /// Har DONA uchun o'z marka kodi bormi.
+  ///
+  /// Shart `markingRequired` bayrog'iga EMAS, qatorda kod BORLIGIGA bog'liq:
+  /// eski POS'dan ko'chgan mahsulotlarda bu bayroq o'chiq bo'ladi, lekin
+  /// kassir qopqoqdagi DataMatrix'ni o'qisa kod baribir biriktiriladi. Bayroqqa
+  /// bog'lasak, aynan shu — eng ko'p uchraydigan — holatda himoya ishlamasdi.
+  bool get needsMoreLabels =>
+      (markingRequired || labels.isNotEmpty) && labels.length < qty;
 
   CartItem copyWith({num? qty, List<String>? labels}) => CartItem(
         productId: productId,

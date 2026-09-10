@@ -140,6 +140,18 @@ Future<void> _submitSearch(BuildContext context, WidgetRef ref,
     // Skaner ruscha klaviatura tilida yozgan bo'lsa seriya kirillga
     // aylanadi — soliqqa buzuq kod ketmasin (scan_match.fixScanLayout).
     final label = fixScanLayout(raw);
+    // AYNAN SHU SHISHA allaqachon savatdami? Seriya takrorlanmas — bir xil
+    // kod ikki marta ketsa soliq chekni rad etadi (kassir ikki marta
+    // o'qitib yuborishi juda oson).
+    final already = ref
+        .read(cartProvider)
+        .items
+        .any((i) => i.labels.contains(label));
+    if (already) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Bu dona allaqachon savatda — keyingi shishani o\'qiting')));
+      return;
+    }
     var hit = matchScan(all0, raw);
     hit ??= await AssignBarcodeDialog.show(context, normalizeScan(raw),
         allowMarked: true);
@@ -182,6 +194,15 @@ Future<void> _submitSearch(BuildContext context, WidgetRef ref,
       if (n > 0 && n <= 9999) {
         final i = items.length - 1;
         final last = items[i];
+        // MARKIROVKA: miqdorni raqam terib oshirib bo'lmaydi — har shishaning
+        // o'z kodi bor, aks holda 3 dona uchun 1 ta kod bilan chek ketardi.
+        if ((last.markingRequired || last.labels.isNotEmpty) &&
+            n > last.labels.length) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('${last.name}: markirovkali mahsulot — har bir '
+                  'donani alohida skanerlang')));
+          return;
+        }
         // Og'irlik mahsulotida raqam GRAMM deb qabul qilinadi (500 → 0.5 kg).
         final q = last.soldByWeight ? n / 1000 : n.round();
         cart.setQty(i, q);

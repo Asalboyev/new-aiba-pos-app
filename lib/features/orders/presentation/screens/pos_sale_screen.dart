@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/providers/core_providers.dart';
+import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/pos_chrome.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../menu/domain/entities/product.dart';
@@ -315,6 +316,22 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
       {bool qrScan = false}) async {
     final cart = ref.read(cartProvider);
     if (cart.isEmpty) return;
+
+    // ── MARKIROVKA: har DONA uchun o'z kodi ─────────────────────────────
+    // Marka kodi har shishada boshqacha. Kassir bitta shishani skanerlab,
+    // keyin miqdorni 3 ga ko'tarsa, soliqqa 3 dona uchun BITTA kod ketardi —
+    // bu qonun buzilishi va soliq chekni rad etishi mumkin.
+    final noLabel = cart.items.where((i) => i.needsMoreLabels).toList();
+    if (noLabel.isNotEmpty) {
+      final it = noLabel.first;
+      _toast(
+        context,
+        '${it.name}: ${Money.formatQty(it.qty)} dona uchun '
+        '${it.labels.length} ta marka kodi bor — har bir donani alohida '
+        'skanerlang (F2)',
+      );
+      return;
+    }
 
     // Keldi-ketdi (VIP mehmon) — manager Telegram kodi bilan tasdiqlanadi,
     // pul olinmaydi, chek "keldi-ketdi" to'lovi bilan yopiladi.

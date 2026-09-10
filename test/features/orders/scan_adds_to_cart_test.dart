@@ -40,10 +40,16 @@ void main() {
     return c;
   }
 
-  Future<void> scan(WidgetTester tester, String code) async {
+  Future<void> scan(WidgetTester tester, String code, {bool settle = true}) async {
     await tester.enterText(find.byType(TextField).first, code);
     await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pumpAndSettle();
+    // SnackBar tekshiriladigan joyda `settle` qilmaymiz — u o'zi yo'qoladi.
+    if (settle) {
+      await tester.pumpAndSettle();
+    } else {
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+    }
   }
 
   testWidgets('markirovka (DataMatrix) skanerlansa savatga o\'zi qo\'shiladi',
@@ -66,5 +72,29 @@ void main() {
     await scan(tester, '5449000000996');
     expect(c.read(cartProvider).items.length, 1);
     expect(c.read(cartProvider).items.first.name, 'Coca-Cola 0,5');
+  });
+
+  testWidgets('AYNAN SHU shisha ikki marta o\'qilsa — ikkinchisi rad etiladi',
+      (tester) async {
+    final c = await pump(tester);
+    const dm = '0105449000000996' '21BIR-XIL-SERIYA';
+    await scan(tester, dm);
+    await scan(tester, dm, settle: false);
+    final items = c.read(cartProvider).items;
+    expect(items.length, 1);
+    // Miqdor 1 bo'lib qoladi: bir xil seriya ikki marta soliqqa ketmaydi.
+    expect(items.first.qty, 1);
+    expect(items.first.labels.length, 1);
+  });
+
+  testWidgets('markirovkali qatorda miqdorni RAQAM terib oshirib bo\'lmaydi',
+      (tester) async {
+    final c = await pump(tester);
+    await scan(tester, '0105449000000996' '21SERIYA-1');
+    // Kassir «3» + Enter teradi — odatda bu miqdorni 3 qiladi.
+    await scan(tester, '3', settle: false);
+    final items = c.read(cartProvider).items;
+    expect(items.first.qty, 1, reason: 'markirovkali qatorda miqdor oshmasligi kerak');
+    expect(items.first.labels.length, 1);
   });
 }
