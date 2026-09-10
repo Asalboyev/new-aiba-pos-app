@@ -17,6 +17,7 @@ import '../../domain/entities/cart.dart';
 import '../../domain/entities/checkout_result.dart';
 import '../../domain/entities/fiscal_info.dart';
 import '../../domain/entities/order_draft.dart';
+import '../../domain/fiscal_check.dart';
 import '../../domain/entities/payment_method.dart';
 import '../providers/cart_provider.dart';
 import '../providers/orders_providers.dart';
@@ -316,6 +317,19 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
       {bool qrScan = false}) async {
     final cart = ref.read(cartProvider);
     if (cart.isEmpty) return;
+
+    // ── FISKAL MAYDONLAR: kassir to'lov paytida qotib qolmasin ─────────
+    // E-POS rejimida server HAR SATRDA 17 xonali MXIK va paket kodini talab
+    // qiladi. Ular yo'q bo'lsa buyurtma to'lov bosilgandan keyin inglizcha
+    // «Item 'X': mxik_code is required» bilan yiqilardi — kassir nima
+    // qilishni bilmasdi, navbat esa kutib turardi. Endi to'lovdan OLDIN,
+    // tushunarli tilda va qaysi mahsulot ekani bilan aytiladi.
+    final blocker = fiscalBlocker(
+        cart.items, ref.read(sessionProvider)?.restaurant.fiscalProvider);
+    if (blocker != null) {
+      _toast(context, blocker);
+      return;
+    }
 
     // ── MARKIROVKA: har DONA uchun o'z kodi ─────────────────────────────
     // Marka kodi har shishada boshqacha. Kassir bitta shishani skanerlab,
