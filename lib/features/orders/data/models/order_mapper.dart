@@ -29,10 +29,17 @@ class OrderMapper {
             if (item.mxikCode != null) 'mxik_code': item.mxikCode,
             if (item.packageCode != null) 'package_code': item.packageCode,
             if (item.vatPercent != null) 'vat_percent': item.vatPercent,
-            // E-POS markirovka mahsulotlari uchun label majburiy — birinchi
-            // skanerdan olingan DataMatrix'ni jo'natamiz (server bir qator = 1
-            // birlik sifatida qabul qiladi).
-            if (item.labels.isNotEmpty) 'label': item.labels.first,
+            // E-POS markirovka mahsulotlari uchun marka kodi majburiy.
+            // IKKI DONA sotilsa IKKALA kod ham ketishi kerak — soliqqa qaysi
+            // donalar sotilgani ko'rinib tursin. Ilgari faqat `labels.first`
+            // jo'natilardi: kassir ikkita shishani skanerlasa, chekda bitta
+            // marka kodi qolib, ikkinchisi yo'qolardi.
+            //
+            // Server `label` (bitta) va `labels` (ro'yxat) — ikkalasini ham
+            // biladi, LEKIN `label` ustun turadi. Shuning uchun bittasini
+            // jo'natamiz: bir dona bo'lsa `label`, ko'p bo'lsa `labels`.
+            if (item.labels.length == 1) 'label': item.labels.first,
+            if (item.labels.length > 1) 'labels': item.labels,
           },
       ],
       'payments': [
