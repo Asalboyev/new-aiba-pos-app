@@ -1,7 +1,11 @@
 ; AIBA POS — Windows o'rnatuvchi (Inno Setup).
 ; Per-user o'rnatiladi (LocalAppData) — UAC/admin so'ramaydi, kassir bir
-; "Next-Next" bilan o'rnatadi. VC++ runtime DLL'lari CI'da Release papkaga
-; qo'shib qo'yiladi, shuning uchun alohida redist kerak emas.
+; "Next-Next" bilan o'rnatadi. VC++ runtime DLL'lari (msvcp140, vcruntime140,
+; vcruntime140_1) `windows/CMakeLists.txt` dagi InstallRequiredSystemLibraries
+; orqali Release papkaga tushadi, shuning uchun alohida redist kerak emas.
+; CI ularning borligini tekshiradi — bo'lmasa build yiqiladi.
+;
+; Versiya CI'dan keladi: `iscc /DAppVersion=1.0.3 windows/installer.iss`.
 
 #ifndef AppVersion
   #define AppVersion "1.0.0"
@@ -16,9 +20,12 @@ DefaultDirName={localappdata}\AIBA POS
 DisableDirPage=yes
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
-OutputBaseFilename=AIBA-POS-Setup
+OutputBaseFilename=AIBA-POS-Setup-{#AppVersion}
 Compression=lzma2
 SolidCompression=yes
+; Ilova faqat 64-bit. Bunisiz 32-bit Windows'da o'rnatuvchi ishlagandek
+; bo'lib, ilova ochilmasdi — endi tushunarli xabar chiqadi.
+ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 CloseApplications=yes
 RestartApplications=no

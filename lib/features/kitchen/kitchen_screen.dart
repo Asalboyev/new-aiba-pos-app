@@ -346,7 +346,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
   void initState() {
     super.initState();
     // Kassa terminalidagidek klaviatura bilan boshqarish (sichqonchasiz):
-    //   F1 — qidiruvga o'tish; Enter — savatchani tasdiqlash; Esc — chiqish.
+    //   F4 — qidiruvga o'tish; Enter — savatchani tasdiqlash; Esc — chiqish.
     HardwareKeyboard.instance.addHandler(_onHwKey);
   }
 
@@ -355,7 +355,8 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
     final route = ModalRoute.of(context);
     if (route != null && !route.isCurrent) return false; // dialog ochiq
     final k = e.logicalKey;
-    if (k == LogicalKeyboardKey.f1) {
+    // F4 — qidiruv (savdo ekranidagi bilan bir xil).
+    if (k == LogicalKeyboardKey.f4) {
       _searchFocus.requestFocus();
       _searchCtl.selection = TextSelection(baseOffset: 0, extentOffset: _searchCtl.text.length);
       return true;
@@ -516,7 +517,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                               style: const TextStyle(fontSize: 17),
                               decoration: InputDecoration(
                                 isDense: true,
-                                hintText: 'Taom qidirish (F1)…',
+                                hintText: 'Taom qidirish (F4)…',
                                 prefixIcon: const Icon(Icons.search, size: 20),
                                 filled: true,
                                 fillColor: c.field,

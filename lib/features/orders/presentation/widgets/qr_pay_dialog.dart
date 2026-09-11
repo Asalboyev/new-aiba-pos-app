@@ -20,9 +20,9 @@ class QrPayDialog extends ConsumerStatefulWidget {
   const QrPayDialog({super.key, required this.total, this.scanMode = false});
   final num total;
 
-  /// true — Click Pass rejimi (F10): skaner maydoni ochiq keladi, mijoz
+  /// true — Click Pass rejimi (F1): skaner maydoni ochiq keladi, mijoz
   /// ko'rsatgan QR o'qiladi va pul avtomatik yechiladi.
-  /// false — statik QR rejimi (F3): mijoz kassadagi QRni ilovasida to'laydi,
+  /// false — statik QR rejimi: mijoz kassadagi QRni ilovasida to'laydi,
   /// kassir qo'lda tasdiqlaydi. Skaner maydoni ko'rsatilmaydi.
   final bool scanMode;
 
@@ -232,7 +232,7 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
               return KeyEventResult.handled;
             }
             // Qo'lda tasdiqlash (Enter×2) — faqat statik QR rejimida.
-            // Skaner rejimida (F10) bo'sh Enter hech narsa qilmaydi: to'lov
+            // Skaner rejimida bo'sh Enter hech narsa qilmaydi: to'lov
             // faqat mijoz QRi skanerlanganda o'tadi.
             if ((event.logicalKey == LogicalKeyboardKey.enter ||
                     event.logicalKey == LogicalKeyboardKey.numpadEnter) &&
@@ -365,7 +365,7 @@ class _QrPayDialogState extends ConsumerState<QrPayDialog> {
                     ],
                   ],
                 ),
-                // Skaner maydoni — Click Pass (F3) rejimida va FAQAT Click
+                // Skaner maydoni — Click Pass (F1) rejimida va FAQAT Click
                 // tanlanganda: mijoz KO'RSATGAN QR shu yerga o'qiladi va pul
                 // avtomatik yechiladi. Uzumga o'tilsa maydon YASHIRINADI —
                 // kassir pul kelganini ko'rib qo'lda tasdiqlaydi.

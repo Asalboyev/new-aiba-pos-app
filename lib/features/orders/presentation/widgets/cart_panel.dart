@@ -119,14 +119,14 @@ class CartPanel extends ConsumerWidget {
             label: 'Karta',
             iconAsset: 'assets/icons/pay_card.svg',
             filled: true,
-            keyLabel: 'F4',
+            keyLabel: 'F3',
             onTap: cart.isEmpty ? null : () => onCheckout(PaymentMethod.uzcard),
           ),
           const SizedBox(height: 10),
           _PayButton(
             label: 'Naqd',
             iconAsset: 'assets/icons/pay_cash.svg',
-            keyLabel: 'F5',
+            keyLabel: 'F2',
             onTap: cart.isEmpty ? null : () => onCheckout(PaymentMethod.cash),
           ),
           const SizedBox(height: 10),
@@ -136,7 +136,7 @@ class CartPanel extends ConsumerWidget {
                 child: _PayButton(
                   label: 'Keldi - ketdi',
                   iconAsset: 'assets/icons/pay_users.svg',
-                  keyLabel: 'F6',
+                  keyLabel: 'F5',
                   onTap: cart.isEmpty
                       ? null
                       : () => onCheckout(PaymentMethod.keldiKetdi),
@@ -147,7 +147,7 @@ class CartPanel extends ConsumerWidget {
                 child: _PayButton(
                   label: 'QR',
                   iconAsset: 'assets/icons/pay_qr_fill.svg',
-                  keyLabel: 'F3',
+                  keyLabel: 'F1',
                   onTap: cart.isEmpty ? null : () => onCheckout(PaymentMethod.qr),
                 ),
               ),
@@ -362,7 +362,7 @@ class _PayButton extends StatelessWidget {
   final VoidCallback? onTap;
   final bool filled;
 
-  /// Tugmani ochadigan klavish (F3/F4/F5/F6) — chiroyli badge sifatida.
+  /// Tugmani ochadigan klavish (F1/F2/F3/F5) — chiroyli badge sifatida.
   final String? keyLabel;
 
   @override

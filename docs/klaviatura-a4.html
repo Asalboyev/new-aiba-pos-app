@@ -1,0 +1,254 @@
+<meta charset="utf-8">
+<title>AIBA POS — Klaviatura</title>
+<style>
+  @page { size: A4 portrait; margin: 10mm; }
+
+  :root {
+    --ink:      #111418;
+    --dim:      #5b6470;
+    --line:     #c8cdd4;
+    --pay:      #e8f1fd;
+    --pay-b:    #2273e7;
+    --sale:     #eaf6ec;
+    --sale-b:   #1f8a3d;
+    --chek:     #fdeceb;
+    --chek-b:   #cc2f26;
+    --misc:     #f1f0f4;
+    --misc-b:   #6b6b78;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; padding: 0;
+    background: #fff; color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+
+  /* Ekranda ham A4 varaqdek ko'rinsin — chop etishdan oldin tekshirish uchun. */
+  .sheet {
+    width: 190mm; min-height: 277mm;
+    margin: 0 auto; padding: 0;
+    display: flex; flex-direction: column;
+  }
+  @media screen {
+    body { background: #9aa0a6; padding: 16px 0; }
+    .sheet { background: #fff; box-shadow: 0 2px 14px rgba(0,0,0,.35); padding: 10mm; width: 210mm; }
+  }
+  /* Chop etishda balandlikni MAJBURLAMAYMIZ: 277mm + footer'ning
+     margin-top:auto'si kontent bilan birga 2-betga oshib ketardi va
+     printerdan deyarli bo'sh ikkinchi varaq chiqardi. */
+  @media print {
+    .sheet { width: auto; min-height: 0; }
+    footer { margin-top: 9px; }
+  }
+
+  /* ── Sarlavha ─────────────────────────────────────────────── */
+  header {
+    display: flex; align-items: baseline; gap: 10px;
+    border-bottom: 2.5px solid var(--ink); padding-bottom: 5px; margin-bottom: 7px;
+  }
+  h1 { font-size: 27px; margin: 0; letter-spacing: -.3px; }
+  header .sub { font-size: 13px; color: var(--dim); margin-left: auto; }
+
+  /* ── Asosiy jadval ────────────────────────────────────────── */
+  .keys { display: flex; flex-direction: column; gap: 2px; }
+
+  .grp-title {
+    font-size: 10.5px; font-weight: 800; letter-spacing: .9px;
+    text-transform: uppercase; color: var(--dim);
+    margin: 4px 0 1px;
+  }
+  .grp-title:first-child { margin-top: 0; }
+
+  .row {
+    display: flex; align-items: center; gap: 13px;
+    border: 1px solid var(--line); border-left-width: 6px;
+    border-radius: 5px; padding: 8px 12px;
+  }
+  .row.pay  { background: var(--pay);  border-left-color: var(--pay-b); }
+  .row.sale { background: var(--sale); border-left-color: var(--sale-b); }
+  .row.chek { background: var(--chek); border-left-color: var(--chek-b); }
+  .row.misc { background: var(--misc); border-left-color: var(--misc-b); }
+
+  /* Klavisha — haqiqiy tugmaga o'xshash */
+  .cap {
+    flex: 0 0 auto; min-width: 60px;
+    font-size: 19px; font-weight: 800; text-align: center;
+    padding: 4px 7px; border-radius: 5px;
+    background: #fff; border: 1.5px solid var(--ink);
+    box-shadow: 0 1.5px 0 var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .cap.wide { min-width: 86px; font-size: 14px; }
+
+  .what { font-size: 18.5px; font-weight: 700; line-height: 1.15; }
+  .note { font-size: 13px; color: var(--dim); margin-left: auto; text-align: right; line-height: 1.2; }
+
+  /* ── Pastki ikki ustun ────────────────────────────────────── */
+  .cols { display: flex; gap: 8px; margin-top: 8px; }
+  .box {
+    flex: 1; border: 1px solid var(--line); border-radius: 5px; padding: 6px 9px 7px;
+  }
+  .box h2 {
+    font-size: 11px; font-weight: 800; letter-spacing: .7px; text-transform: uppercase;
+    margin: 0 0 4px; color: var(--ink);
+    border-bottom: 1px solid var(--line); padding-bottom: 3px;
+  }
+  .box dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; align-items: baseline; }
+  .box dt { font-size: 13px; font-weight: 800; white-space: nowrap; }
+  .box dd { margin: 0; font-size: 13px; line-height: 1.25; }
+  .k {
+    display: inline-block; font-weight: 800; font-size: 11px;
+    border: 1px solid var(--ink); border-radius: 3px; padding: 0 4px;
+    background: #fff; white-space: nowrap;
+  }
+
+  /* ── Ogohlantirish ────────────────────────────────────────── */
+  .warn {
+    margin-top: 8px; border: 2px solid var(--chek-b); background: var(--chek);
+    border-radius: 5px; padding: 6px 10px;
+    font-size: 14.5px; line-height: 1.35;
+  }
+  .warn b { color: var(--chek-b); }
+
+  footer {
+    margin-top: auto; padding-top: 6px; border-top: 1px solid var(--line);
+    font-size: 10px; color: var(--dim); display: flex;
+  }
+  footer .r { margin-left: auto; }
+</style>
+
+<div class="sheet">
+  <header>
+    <h1>AIBA POS — Klaviatura</h1>
+    <div class="sub">Kassir mishkasiz ishlaydi — hamma amal shu tugmalarda</div>
+  </header>
+
+  <div class="keys">
+
+    <div class="grp-title">To‘lov</div>
+
+    <div class="row pay">
+      <div class="cap">F1</div>
+      <div class="what">QR — Click Pass</div>
+      <div class="note">skaner mijoz QR‘ini o‘qiydi</div>
+    </div>
+    <div class="row pay">
+      <div class="cap">F2</div>
+      <div class="what">Naqd</div>
+      <div class="note">chek avtomatik chiqmaydi</div>
+    </div>
+    <div class="row pay">
+      <div class="cap">F3</div>
+      <div class="what">Karta</div>
+      <div class="note">UzCard ochiladi · yana bossa Humo</div>
+    </div>
+    <div class="row pay">
+      <div class="cap">F5</div>
+      <div class="what">Keldi-ketdi</div>
+      <div class="note">VIP — menejer kodi bilan</div>
+    </div>
+
+    <div class="grp-title">Savdo</div>
+
+    <div class="row sale">
+      <div class="cap">F4</div>
+      <div class="what">Qidiruv</div>
+      <div class="note">kod yoki nom teriladi</div>
+    </div>
+    <div class="row sale">
+      <div class="cap">F6</div>
+      <div class="what">Markirovka / skaner</div>
+      <div class="note">har shishani ALOHIDA o‘qiting</div>
+    </div>
+    <div class="row sale">
+      <div class="cap">F7</div>
+      <div class="what">Yangi zakaz</div>
+      <div class="note">mijoz kutib qolsa</div>
+    </div>
+    <div class="row sale">
+      <div class="cap">F8</div>
+      <div class="what">Keyingi zakaz</div>
+      <div class="note"><span class="k">Shift</span> + <span class="k">F8</span> — oldingi zakaz</div>
+    </div>
+
+    <div class="grp-title">Chek</div>
+
+    <div class="row chek">
+      <div class="cap">F9</div>
+      <div class="what">Cheklar ro‘yxati</div>
+      <div class="note">mijoz chek so‘rasa — shu yerdan</div>
+    </div>
+    <div class="row chek">
+      <div class="cap">F11</div>
+      <div class="what">Oxirgi chekni XATO qilish</div>
+      <div class="note">to‘langan chek uchun</div>
+    </div>
+    <div class="row chek">
+      <div class="cap">F12</div>
+      <div class="what">XATO CHEK — zakazni yopish</div>
+      <div class="note">sabab so‘raladi</div>
+    </div>
+
+    <div class="grp-title">Boshqa</div>
+
+    <div class="row misc">
+      <div class="cap">F10</div>
+      <div class="what">Bo‘limlar almashishi</div>
+      <div class="note">Mahsulotlar ⇄ Online buyurtmalar</div>
+    </div>
+
+  </div>
+
+  <div class="cols">
+    <div class="box">
+      <h2>Qidiruv ichida (F4)</h2>
+      <dl>
+        <dt>kod + <span class="k">Enter</span></dt>
+        <dd>mahsulot savatga tushadi</dd>
+
+        <dt><span class="k">↑</span> <span class="k">↓</span></dt>
+        <dd>ro‘yxatdan tanlash, <span class="k">Enter</span> — qo‘shish</dd>
+
+        <dt>raqam + <span class="k">Enter</span></dt>
+        <dd>oxirgi qatorning MIQDORI (masalan <b>3</b>)</dd>
+
+        <dt>3*kod</dt>
+        <dd>darhol miqdor bilan (<b>kod*3</b> ham bo‘ladi)</dd>
+
+        <dt>skaner</dt>
+        <dd>o‘zi qo‘shadi — tugma bosish shart emas</dd>
+      </dl>
+    </div>
+
+    <div class="box">
+      <h2>Oyna ochilganda</h2>
+      <dl>
+        <dt>To‘lov</dt>
+        <dd>summa teriladi · <span class="k">Enter</span> to‘lash · <span class="k">Esc</span> bekor<br>
+            usulni almashtirish: <span class="k">F1</span> QR · <span class="k">F2</span> naqd · <span class="k">F3</span> karta</dd>
+
+        <dt>QR</dt>
+        <dd><span class="k">Enter</span> tasdiqlash · <span class="k">F1</span> Click · <span class="k">F2</span> Uzum · <span class="k">Esc</span> bekor</dd>
+
+        <dt>Fiskal</dt>
+        <dd><span class="k">Enter</span> yopish · <span class="k">P</span> chop etish · <span class="k">X</span> xato belgilash</dd>
+
+        <dt>Ish vaqti</dt>
+        <dd><span class="k">Enter</span> smenani boshlash · <span class="k">Z</span> smenani yopish</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="warn">
+    <b>DIQQAT:</b> savatdan bitta qatorni o‘chirib bo‘lmaydi. Xato mahsulot urilgan bo‘lsa —
+    <b>F12</b> bilan butun chekni xato qilib yoping va qaytadan tering.
+  </div>
+
+  <footer>
+    <div>AIBA POS · kassir uchun</div>
+    <div class="r">11.09.2026</div>
+  </footer>
+</div>

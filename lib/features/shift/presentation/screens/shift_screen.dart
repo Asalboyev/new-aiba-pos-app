@@ -559,7 +559,7 @@ class _ShiftScreenState extends ConsumerState<ShiftScreen> {
         tileRows(payTiles, compact),
         // Naqd savdoning fiskal kesimi: menejer «naqdning qanchasi soliqda
         // QR olgan, qanchasi hali QRsiz» — bir qarashda. Cheklarning o'zi
-        // F12 (Cheklar tarixi) dan chiqariladi.
+        // F9 (Cheklar ro'yxati) dan chiqariladi.
         if ((shift?.cashQrCount ?? 0) + (shift?.cashNoQrCount ?? 0) > 0) ...[
           const SizedBox(height: 14),
           tileRows(<Widget>[

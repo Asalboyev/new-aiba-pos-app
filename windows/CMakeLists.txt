@@ -87,6 +87,25 @@ if(PLUGIN_BUNDLED_LIBRARIES)
     COMPONENT Runtime)
 endif()
 
+# === Visual C++ ish vaqti kutubxonalari ==================================
+# Flutter O'ZI MSVC runtime DLL'larini (msvcp140.dll, vcruntime140.dll,
+# vcruntime140_1.dll) nusxalamaydi. Toza Windows'da — masalan yangi kassa
+# monoblogida — «Visual C++ Redistributable» o'rnatilmagan bo'lsa, ilova
+# ochilmaydi: ikki marta bosasiz, hech narsa chiqmaydi yoki «VCRUNTIME140.dll
+# topilmadi» deydi. O'rnatuvchi ishlagandek ko'rinadi, ilova esa yo'q.
+#
+# Shuning uchun DLL'lar ilova yoniga qo'yiladi — alohida redist o'rnatish
+# kerak emas. UCRT (api-ms-win-crt-*) Windows 10/11 tarkibida bor, shuning
+# uchun u qo'shilmaydi.
+set(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP TRUE)
+include(InstallRequiredSystemLibraries)
+if(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS)
+  install(FILES ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}
+    DESTINATION "${INSTALL_BUNDLE_LIB_DIR}" COMPONENT Runtime)
+else()
+  message(WARNING "MSVC runtime DLL'lari topilmadi — ilova toza Windows'da ochilmasligi mumkin")
+endif()
+
 # Copy the native assets provided by the build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/windows/")
 install(DIRECTORY "${NATIVE_ASSETS_DIR}"

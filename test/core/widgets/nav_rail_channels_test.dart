@@ -32,7 +32,7 @@ void main() {
     );
     // Eski yagona bo'lim o'rniga uchta kanal.
     expect(find.textContaining('Yetkazib'), findsNothing);
-    final y = (String s) => t.getTopLeft(find.text(s)).dy;
+    double y(String s) => t.getTopLeft(find.text(s)).dy;
     expect(y('Mahsulotlar') < y('AIBA\nTEZKOR'), isTrue);
     expect(y('AIBA\nTEZKOR') < y('Uzum\nTezkor'), isTrue);
     expect(y('Uzum\nTezkor') < y('Yandex'), isTrue);
@@ -88,7 +88,7 @@ void main() {
     expect(find.text('Yandex'), findsOneWidget);
   });
 
-  testWidgets('kanallar berilmasa eski «Yetkazib berish» qoladi', (t) async {
+  testWidgets('kanallar berilmasa bitta «Online buyurtmalar» qoladi', (t) async {
     await pump(
       t,
       PosNavRail(
@@ -99,6 +99,6 @@ void main() {
         showSettings: false,
       ),
     );
-    expect(find.text('Yetkazib\nberish'), findsOneWidget);
+    expect(find.text('Online\nbuyurtmalar'), findsOneWidget);
   });
 }

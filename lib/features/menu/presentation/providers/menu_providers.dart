@@ -118,7 +118,7 @@ final filteredProductsProvider = Provider<List<Product>>((ref) {
       );
   final selected = ref.watch(selectedCategoryProvider);
   final q = searchTermOf(ref.watch(searchQueryProvider)).toLowerCase();
-  // MARKIROVKALI mahsulotlar menyuda KO'RINMAYDI: ular faqat F2 (skaner)
+  // MARKIROVKALI mahsulotlar menyuda KO'RINMAYDI: ular faqat F6 (skaner)
   // orqali qo'shiladi — kassir DataMatrix kodni o'qiydi, mahsulot avtomatik
   // savatga tushadi va kod soliqqa ketadi. Menyudan bosib qo'shsa kod
   // bo'lmaydi va chek soliqda rad etiladi.

@@ -213,7 +213,7 @@ class DioClient {
         if (code == 401 || code == 403) {
           // 401 on a token-bearing request = session expired (login itself is
           // noAuth, so a wrong PIN never triggers this).
-          // noLogout: ixtiyoriy so'rovlar (masalan F12 ro'yxati) 401 qaytarsa
+          // noLogout: ixtiyoriy so'rovlar (masalan F9 ro'yxati) 401 qaytarsa
           // ham sessiya TUGATILMAYDI — eski serverda endpoint bo'lmasligi
           // kassirni logout qilib yubormasin.
           if (code == 401 &&

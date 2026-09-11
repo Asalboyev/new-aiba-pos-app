@@ -134,7 +134,7 @@ class Cart extends Equatable {
     if (index < 0 || index >= items.length) return this;
     final next = [...items];
     // 0 yoki manfiy miqdor QATORNI O'CHIRMAYDI — savatdan o'chirish umuman
-    // yo'q (nazorat talabi): xato urilgan bo'lsa chek F9 bilan yopiladi.
+    // yo'q (nazorat talabi): xato urilgan bo'lsa chek F12 bilan yopiladi.
     // Minimal miqdor: dona uchun 1, vaznli mahsulot uchun 0.001 kg.
     if (qty <= 0) {
       final min = next[index].soldByWeight ? 0.001 : 1;

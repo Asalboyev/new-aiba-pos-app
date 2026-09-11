@@ -45,7 +45,7 @@ class PosSaleScreen extends ConsumerStatefulWidget {
 String? _lastErrorCheckNumber;
 
 /// Oxirgi to'langan chek — natija dialogi olib tashlangani uchun shu yerda
-/// eslab qolinadi: F12 — mijoz so'rasa chop etish, F11 — xato deb belgilash.
+/// eslab qolinadi: F9 — mijoz so'rasa chop etish, F11 — xato deb belgilash.
 ReceiptData? _lastReceipt;
 CheckoutResult? _lastResult;
 
@@ -78,31 +78,31 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
     if (route != null && !route.isCurrent) return false;
     final k = event.logicalKey;
     if (k == LogicalKeyboardKey.f1) {
-      posSearchFocusNode.requestFocus();
-      return true;
-    }
-    if (k == LogicalKeyboardKey.f2) {
-      _scanAdd(context, ref);
-      return true;
-    }
-    if (k == LogicalKeyboardKey.f3) {
-      // F3 — Click Pass: skaner maydoni ochiq keladi, mijoz QRi o'qilishi
+      // F1 — Click Pass: skaner maydoni ochiq keladi, mijoz QRi o'qilishi
       // bilan pul yechiladi (Uzum tanlansa maydon yashirinadi — qo'lda
-      // tasdiqlash). Avval F10'da edi — F10 bo'limlar aylanishiga qaytdi.
+      // tasdiqlash).
       _checkout(context, ref, PaymentMethod.qr, qrScan: true);
       return true;
     }
-    if (k == LogicalKeyboardKey.f4) {
-      // F4 — karta: dialog UzCard'dan ochiladi (F4 yana bosilsa Humo).
-      _checkout(context, ref, PaymentMethod.uzcard);
-      return true;
-    }
-    if (k == LogicalKeyboardKey.f5) {
+    if (k == LogicalKeyboardKey.f2) {
       _checkout(context, ref, PaymentMethod.cash);
       return true;
     }
-    if (k == LogicalKeyboardKey.f6) {
+    if (k == LogicalKeyboardKey.f3) {
+      // F3 — karta: dialog UzCard'dan ochiladi (F3 yana bosilsa Humo).
+      _checkout(context, ref, PaymentMethod.uzcard);
+      return true;
+    }
+    if (k == LogicalKeyboardKey.f4) {
+      posSearchFocusNode.requestFocus();
+      return true;
+    }
+    if (k == LogicalKeyboardKey.f5) {
       _checkout(context, ref, PaymentMethod.keldiKetdi);
+      return true;
+    }
+    if (k == LogicalKeyboardKey.f6) {
+      _scanAdd(context, ref);
       return true;
     }
     // ── Bir nechta buyurtma (mijoz kutib qolsa) — faqat klaviatura ──
@@ -128,26 +128,28 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
       }
       return true;
     }
+    // F9 — bugungi CHEKLAR RO'YXATI: kassir kerakli orderni tanlaydi, u
+    // soliqqa yuborilib QR bilan chiqadi va ro'yxatdan o'chadi. (Naqd
+    // cheklar avtomatik fiskal QILINMAYDI — talab bo'yicha.)
     if (k == LogicalKeyboardKey.f9) {
-      _closeOrder(context, ref);
-      return true;
-    }
-    // F10 — bo'limlar aylanishi (home_shell); Click Pass endi F3'da.
-    // F12 — bugungi FISKAL QILINMAGAN naqd cheklar ro'yxati: kassir kerakli
-    // orderni tanlaydi, u soliqqa yuborilib QR bilan chiqadi va ro'yxatdan
-    // o'chadi. (Naqd cheklar avtomatik fiskal QILINMAYDI — talab bo'yicha.)
-    if (k == LogicalKeyboardKey.f12) {
       // ignore: unawaited_futures
       _openUnfiscalized(context, ref);
       return true;
     }
+    // F10 — bo'limlar aylanishi (home_shell).
     // F11 — oxirgi to'langan chekni XATO deb belgilash.
     if (k == LogicalKeyboardKey.f11) {
       _markLastError(context, ref);
       return true;
     }
+    // F12 — joriy zakazni XATO CHEK qilib yopish. F11 bilan yonma-yon:
+    // ikkala «xato» amali bir joyda tursin.
+    if (k == LogicalKeyboardKey.f12) {
+      _closeOrder(context, ref);
+      return true;
+    }
     // Savatdan O'CHIRISH YO'Q (ataylab): urilgan mahsulot faqat butun
-    // chekni XATO (F9) qilib yopish orqali bekor bo'ladi — kassir
+    // chekni XATO (F12) qilib yopish orqali bekor bo'ladi — kassir
     // yashirincha qator olib tashlay olmasin (nazorat talabi).
     return false;
   }
@@ -165,7 +167,7 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
       ));
   }
 
-  /// F9 — joriy zakazni bekor qilish. Savatда mahsulot bo'lsa: SABAB so'raladi
+  /// F12 — joriy zakazni bekor qilish. Savatда mahsulot bo'lsa: SABAB so'raladi
   /// va XATO URILGAN CHEK chop etiladi (to'lov qilinmagan bo'lsa ham —
   /// mahsulot xato urilgan bo'lsa hisobga olinishi shart), keyin savat
   /// tozalanadi / zakaz yopiladi. Bo'sh bo'lsa — jimgina yopiladi.
@@ -293,7 +295,7 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
     }
   }
 
-  // TO'LOV DAVOMIDA IKKINCHI BOSISH (F5/klik) — dublikat chek bo'lmasin:
+  // TO'LOV DAVOMIDA IKKINCHI BOSISH (to'lov klavishi/klik) — dublikat chek bo'lmasin:
   // POST /orders 5–20 s ketishi mumkin, shu vaqtda savat hali tozalanmagan.
   bool _checkoutBusy = false;
 
@@ -342,7 +344,7 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
         context,
         '${it.name}: ${Money.formatQty(it.qty)} dona uchun '
         '${it.labels.length} ta marka kodi bor — har bir donani alohida '
-        'skanerlang (F2)',
+        'skanerlang (F6)',
       );
       return;
     }
@@ -358,7 +360,7 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
         Payment(PaymentMethod.keldiKetdi, cart.total, label: 'Keldi-ketdi'),
       ];
     } else if (method == PaymentMethod.qr) {
-      // Click / Uzum. F3 (qrScan=true) — Click Pass: Click tanlangan bo'lsa
+      // Click / Uzum. F1 (qrScan=true) — Click Pass: Click tanlangan bo'lsa
       // skaner maydoni ochiq, mijoz QRi o'qilishi bilan pul yechiladi va
       // order AVTOMATIK yopiladi; Uzum tanlansa maydon yashirinadi — kassir
       // pul kelganini ko'rib qo'lda tasdiqlaydi.
@@ -448,7 +450,7 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
 
     if (!context.mounted) return;
 
-    // Oxirgi chek eslab qolinadi: F12 — chop etish (mijoz so'rasa),
+    // Oxirgi chek eslab qolinadi: F9 — chop etish (mijoz so'rasa),
     // F11 — xato deb belgilash.
     _lastReceipt = receipt;
     _lastResult = result;
@@ -456,7 +458,7 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
     // 3) Chek siyosati:
     //    • Validatsiya xatosi — dialog qoladi (kassir sababni ko'rishi shart).
     //    • Karta/QR — chek AVTOMATIK chop etiladi, hech qanday dialogsiz.
-    //    • Naqd / Keldi-ketdi — chek CHIQMAYDI; mijoz so'rasagina F12.
+    //    • Naqd / Keldi-ketdi — chek CHIQMAYDI; mijoz so'rasagina F9.
     if (result.clientError != null) {
       await FiscalResultDialog.show(
         context,
@@ -478,7 +480,7 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
       final offlineNote = result.synced ? '' : ' · Oflayn saqlandi';
       // Naqd oqimi RESTORAN SOZLAMASIGA bog'liq (har mijozda har xil):
       //  - cash_fiscal_on_demand YOQILGAN: chek darhol QRsiz chiqadi, fiskal
-      //    faqat mijoz so'raganda (F12 ro'yxati) yuboriladi;
+      //    faqat mijoz so'raganda (F9 ro'yxati) yuboriladi;
       //  - O'CHIQ (standart): naqd ham karta kabi darhol fiskal bo'lib,
       //    QR bilan chiqadi.
       final onDemand =
@@ -509,7 +511,7 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
     posSearchFocusNode.requestFocus();
   }
 
-  /// F12: bugungi CHEKLAR TARIXI — mijoz keyin chek so'rasa kassir shu
+  /// F9: bugungi CHEKLAR RO'YXATI — mijoz keyin chek so'rasa kassir shu
   /// yerdan qayta chop etadi. Tanlangani [_fiscalizeFromList] orqali
   /// (kerak bo'lsa fiskal qilinib) QR bilan chiqadi.
   Future<void> _openUnfiscalized(BuildContext context, WidgetRef ref) async {
@@ -524,7 +526,7 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
       } catch (_) {
         if (context.mounted) {
           _toast(context,
-              'F12 ro\'yxati ochilmadi — server yangilanishi kerak yoki tarmoq yo\'q');
+              'F9 ro\'yxati ochilmadi — server yangilanishi kerak yoki tarmoq yo\'q');
         }
         return;
       }
@@ -567,7 +569,7 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
       final st = fiscal?.status.toLowerCase();
       if (st != 'sent' && st != 'success') {
         if (context.mounted) {
-          _toast(context, 'Fiskal hali tayyor emas — birozdan so\'ng F12');
+          _toast(context, 'Fiskal hali tayyor emas — birozdan so\'ng F9');
         }
         return false;
       }
@@ -666,7 +668,7 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
   }
 
   /// Naqd to'lov: chek DARHOL chop etiladi, fiskal QRsiz. Naqd chek soliqqa
-  /// YUBORILMAYDI (talab bo'yicha) — mijoz chek so'rasa kassir F12 bosadi:
+  /// YUBORILMAYDI (talab bo'yicha) — mijoz chek so'rasa kassir F9 bosadi:
   /// shunda fiscalize chaqirilib QR bilan chiqadi.
   Future<void> _printNoQrReceipt(
       BuildContext context, WidgetRef ref, ReceiptData receipt) async {
@@ -696,11 +698,11 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
       final rep =
           await ref.read(printerServiceProvider).printReceipt(noQr);
       if (context.mounted && rep.outcome != PrintOutcome.printed) {
-        _toast(context, '${rep.message} · F12 bilan qayta urining');
+        _toast(context, '${rep.message} · F9 bilan qayta urining');
       }
     } catch (_) {
       if (context.mounted) {
-        _toast(context, 'Chek chiqarilmadi — F12 bilan qayta urining');
+        _toast(context, 'Chek chiqarilmadi — F9 bilan qayta urining');
       }
     }
   }
@@ -727,17 +729,17 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
           if (s == 'sent' || s == 'success' || s == 'failed') break;
         }
       }
-      // F12 bilan qayta chop etilganда ham yangi QR chiqsin.
+      // F9 bilan qayta chop etilganда ham yangi QR chiqsin.
       _lastResult = r;
     }
     if (!context.mounted) return;
     try {
       await _printFresh(context, ref, receipt, r);
     } catch (_) {
-      // Chop etish yiqilsa savdo baribir yakunlangan — kassir F12 bilan
+      // Chop etish yiqilsa savdo baribir yakunlangan — kassir F9 bilan
       // qayta urinishi mumkin.
       if (context.mounted) {
-        _toast(context, 'Chek chiqarilmadi — F12 bilan qayta urining');
+        _toast(context, 'Chek chiqarilmadi — F9 bilan qayta urining');
       }
     }
   }
@@ -816,7 +818,7 @@ class _PosSaleScreenState extends ConsumerState<PosSaleScreen> {
     }
   }
 
-  /// F2 — markirovka/shtrix skaner oynasi: skaner kodni yozadi + Enter →
+  /// F6 — markirovka/shtrix skaner oynasi: skaner kodni yozadi + Enter →
   /// mahsulot topilib avtomatik savatga tushadi.
   Future<void> _scanAdd(BuildContext context, WidgetRef ref) async {
     final code = await _ScanDialog.show(context);
@@ -951,7 +953,7 @@ class _MiniCartBar extends ConsumerWidget {
   }
 }
 
-/// F2 — skaner/markirovka kiritish oynasi. Skaner kod yozib Enter yuboradi.
+/// F6 — skaner/markirovka kiritish oynasi. Skaner kod yozib Enter yuboradi.
 class _ScanDialog extends StatelessWidget {
   const _ScanDialog();
 
@@ -977,7 +979,7 @@ class _ScanDialog extends StatelessWidget {
               const Row(children: [
                 Icon(Icons.qr_code_scanner, color: Colors.white, size: 22),
                 SizedBox(width: 12),
-                Text('Skaner / markirovka (F2)',
+                Text('Skaner / markirovka (F6)',
                     style: TextStyle(
                         color: Colors.white,
                         fontSize: 19,

@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/pos_chrome.dart';
 
-/// F12 — BUGUNGI CHEKLAR TARIXI. Mijoz keyinroq "chek bering" deb kelsa
+/// F9 — BUGUNGI CHEKLAR RO'YXATI. Mijoz keyinroq "chek bering" deb kelsa
 /// kassir shu ro'yxatdan topib qayta chop etadi:
 ///  - fiskal QILINMAGAN (naqd) chek → tanlansa soliqqa yuborilib QR bilan
 ///    chiqadi va belgisi ✓ ga o'zgaradi;
@@ -146,7 +146,7 @@ class _UnfiscalizedDialogState extends State<UnfiscalizedDialog> {
                 Row(
                   children: [
                     const Expanded(
-                      child: Text('Cheklar tarixi (F12)',
+                      child: Text('Cheklar ro\'yxati (F9)',
                           style: TextStyle(
                               color: Colors.white,
                               fontSize: 18,

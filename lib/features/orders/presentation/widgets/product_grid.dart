@@ -131,7 +131,7 @@ Future<void> _submitSearch(BuildContext context, WidgetRef ref,
   //
   // Ilgari bu tarmoq YO'Q edi: kodda harflar borligi uchun u «sof raqam»
   // shartiga tushmasdi va NOM bo'yicha qidiruvga o'tib ketardi — kassir
-  // skaner qilsa hech nima qo'shilmasdi, F2 ni bosishga majbur edi.
+  // skaner qilsa hech nima qo'shilmasdi, F6 ni bosishga majbur edi.
   if (looksLikeMarkingCode(raw)) {
     final all0 = ref.read(productsProvider).maybeWhen(
           data: (p) => p,
@@ -176,7 +176,7 @@ Future<void> _submitSearch(BuildContext context, WidgetRef ref,
     final digits = raw.replaceAll(RegExp(r'[^\d]'), '');
     if (digits.length >= 8) {
       var hit = matchScan(all0, raw);
-      // Kod hali biriktirilmagan bo'lsa — F2 ga yubormaymiz, shu yerda
+      // Kod hali biriktirilmagan bo'lsa — F6 ga yubormaymiz, shu yerda
       // mahsulotni tanlash oynasini ochamiz (bir marta, keyin o'zi topadi).
       // Markirovkalilar ham ro'yxatda bo'lsin: kassir aynan shu mahsulotning
       // yorlig'idagi EAN'ni o'qigan.
@@ -322,7 +322,7 @@ Future<void> _addToCart(
   cart.addProduct(p, label: label, qty: qty);
 }
 
-/// Qidiruv maydonining global fokusi — F1 shu yerga fokus beradi.
+/// Qidiruv maydonining global fokusi — F4 shu yerga fokus beradi.
 final posSearchFocusNode = FocusNode(debugLabel: 'pos-search');
 
 class _SearchBar extends ConsumerStatefulWidget {
@@ -376,7 +376,7 @@ class _SearchBarState extends ConsumerState<_SearchBar> {
                   Color(0x6BFFFFFF), BlendMode.srcIn)),
           const SizedBox(width: 10),
           Expanded(
-            // Fizik klaviatura: F1 → fokus, kod/nom teriladi, Enter → savatga.
+            // Fizik klaviatura: F4 → fokus, kod/nom teriladi, Enter → savatga.
             // ↑↓ — natijalar orasida tanlov (ko'k ramka), Enter tanlanganini
             // qo'shadi.
             child: Focus(
@@ -412,7 +412,7 @@ class _SearchBarState extends ConsumerState<_SearchBar> {
                 isCollapsed: true,
                 border: InputBorder.none,
                 // Figma: «Mahsulot qidirish...» — tezkor tugmalar ro'yxati
-                // maydonni to'ldirib yubormasin (yordam F1 chip tooltip'ida).
+                // maydonni to'ldirib yubormasin (yordam F4 chip tooltip'ida).
                 hintText: 'Mahsulot qidirish...',
                 hintStyle: TextStyle(color: Color(0xFF5C626A)),
               ),
@@ -429,7 +429,7 @@ class _SearchBarState extends ConsumerState<_SearchBar> {
               ),
             ),
           const SizedBox(width: 8),
-          // Klavish badge — F1 shu maydonni ochadi.
+          // Klavish badge — F4 shu maydonni ochadi.
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
@@ -437,7 +437,7 @@ class _SearchBarState extends ConsumerState<_SearchBar> {
               borderRadius: BorderRadius.circular(6),
               border: Border.all(color: const Color(0x3DFFFFFF)),
             ),
-            child: const Text('F1',
+            child: const Text('F4',
                 style: TextStyle(
                     color: Color(0x99FFFFFF),
                     fontSize: 11,

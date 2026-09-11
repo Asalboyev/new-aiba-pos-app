@@ -22,7 +22,7 @@ void main() {
         overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
       );
   /// Savat paneli Figma dizaynida: mahsulot soni, jami summa va to'lov
-  /// tugmalari (Karta F4 / Naqd F5 / Keldi-ketdi F6 / QR F3).
+  /// tugmalari (QR F1 / Naqd F2 / Karta F3 / Keldi-ketdi F5).
   testWidgets('CartPanel shows item count and formatted total', (tester) async {
     final container = makeContainer();
     addTearDown(container.dispose);
@@ -93,6 +93,45 @@ void main() {
     await tester.tap(find.text('QR'));
     await tester.pump();
     expect(tapped, PaymentMethod.qr);
+  });
+
+  // Kassir mishka ishlatmaydi va klavishlarni yod oladi — tugmadagi belgi
+  // savdo ekranidagi haqiqiy klavish bilan MOS bo'lishi shart. Yorliq bir
+  // joyda o'zgarib, ikkinchisida qolib ketmasin.
+  testWidgets('to\'lov tugmalarida to\'g\'ri klavish belgisi turadi',
+      (tester) async {
+    final container = makeContainer();
+    addTearDown(container.dispose);
+    container
+        .read(cartProvider.notifier)
+        .addProduct(const Product(id: 'p1', name: 'Burger', price: 25000));
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          home: Scaffold(body: CartPanel(onCheckout: (_) {})),
+        ),
+      ),
+    );
+
+    void expectBadge(String label, String key) {
+      final btn = find.ancestor(
+        of: find.text(label),
+        matching: find.byType(InkWell),
+      );
+      expect(btn, findsWidgets, reason: '«$label» tugmasi topilmadi');
+      expect(
+        find.descendant(of: btn.first, matching: find.text(key)),
+        findsOneWidget,
+        reason: '«$label» tugmasida «$key» belgisi turishi kerak',
+      );
+    }
+
+    expectBadge('QR', 'F1');
+    expectBadge('Naqd', 'F2');
+    expectBadge('Karta', 'F3');
+    expectBadge('Keldi - ketdi', 'F5');
   });
 
   test('cartProvider total reflects added products minus discount', () {

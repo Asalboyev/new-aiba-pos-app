@@ -62,46 +62,58 @@ void main() {
     expect(find.text('Qoldi:'), findsOneWidget);
   });
 
-  // ── KLAVIATURA: F1 — UzCard, F2 — Humo ────────────────────────────────────
-  // Kassir mishkasiz ishlaydi: kartaga o'tganda ikki tarmoq orasida
-  // klavisha bilan tanlash kerak, va qaysi tugma ekanini plitkada ko'rsin.
-  testWidgets('F1 — UzCard, F2 — Humo (tanlov va belgilar)', (tester) async {
+  // ── KLAVIATURA: savdo ekrani bilan BIR XIL (F1 QR · F2 naqd · F3 karta) ──
+  // Kassir mishkasiz ishlaydi. Oyna ichidagi klavishlar savdo ekranidagidan
+  // farq qilsa chalkashadi — shuning uchun ikkisi bir xil bo'lishi shart.
+  testWidgets('F3 — UzCard ↔ Humo (tanlov va belgilar)', (tester) async {
     await open(tester, 45600, PaymentMethod.card);
 
-    // Plitkalarda klavisha belgilari ko'rinadi.
-    expect(find.text('F1'), findsOneWidget);
-    expect(find.text('F2'), findsOneWidget);
     expect(find.text('UzCard'), findsOneWidget);
     expect(find.text('Humo'), findsOneWidget);
+    // «F3» belgisi FAQAT tanlanmagan tarmoqda turadi ("bossang shu bo'ladi"),
+    // shuning uchun ekranda bittagina bo'ladi.
+    expect(find.text('F3'), findsOneWidget);
+    expect(_selectedTile(tester, 'UzCard'), isTrue, reason: 'karta → UzCard');
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+    await tester.sendKeyEvent(LogicalKeyboardKey.f3);
     await tester.pumpAndSettle();
-    expect(_selectedTile(tester, 'Humo'), isTrue, reason: 'F2 → Humo');
+    expect(_selectedTile(tester, 'Humo'), isTrue, reason: 'F3 → Humo');
     expect(_selectedTile(tester, 'UzCard'), isFalse);
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.f1);
+    await tester.sendKeyEvent(LogicalKeyboardKey.f3);
     await tester.pumpAndSettle();
-    expect(_selectedTile(tester, 'UzCard'), isTrue, reason: 'F1 → UzCard');
+    expect(_selectedTile(tester, 'UzCard'), isTrue, reason: 'F3 yana → UzCard');
     expect(_selectedTile(tester, 'Humo'), isFalse);
   });
 
-  testWidgets('naqddan F1 bosilsa kartaga (UzCard) o\'tadi', (tester) async {
+  testWidgets('naqddan F3 bosilsa kartaga (UzCard) o\'tadi', (tester) async {
     await open(tester, 45600, PaymentMethod.cash);
     expect(find.text('UzCard'), findsNothing); // naqdda plitkalar yo'q
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.f1);
+    await tester.sendKeyEvent(LogicalKeyboardKey.f3);
     await tester.pumpAndSettle();
     expect(_selectedTile(tester, 'UzCard'), isTrue);
   });
 
-  testWidgets('F1/F2 tanlangan usul chekka O\'SHA nom bilan tushadi',
+  testWidgets('F1 — QR, F2 — naqd (savdo ekrani bilan bir xil)',
       (tester) async {
     await open(tester, 45600, PaymentMethod.card);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.f1);
+    await tester.pumpAndSettle();
+    expect(find.textContaining("QR orqali to'lov"), findsOneWidget);
+
     await tester.sendKeyEvent(LogicalKeyboardKey.f2);
     await tester.pumpAndSettle();
-    // Pastdagi yordam qatori ham shu klavishalarni aytadi.
-    expect(find.textContaining('F1 UzCard'), findsOneWidget);
-    expect(find.textContaining('F2 Humo'), findsOneWidget);
+    expect(find.textContaining("Naqd orqali to'lov"), findsOneWidget);
+  });
+
+  testWidgets('pastdagi yordam qatori shu klavishlarni aytadi',
+      (tester) async {
+    await open(tester, 45600, PaymentMethod.card);
+    expect(find.textContaining('F1 QR'), findsOneWidget);
+    expect(find.textContaining('F2 naqd'), findsOneWidget);
+    expect(find.textContaining('F3 karta'), findsOneWidget);
   });
 }
 

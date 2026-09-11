@@ -62,11 +62,34 @@ jobs:
       - name: Build Windows release
         run: flutter build windows --release
 
+      # Flutter MSVC runtime'ni O'ZI nusxalamaydi — buni
+      # windows/CMakeLists.txt qo'shadi. Agar bir kun ishlamay qolsa,
+      # o'rnatuvchi jim chiqaveradi va ilova mijoz kompyuterida
+      # ochilmaydi. Shuning uchun bu yerda QAT'IY tekshiriladi.
+      - name: Verify VC++ runtime is bundled
+        shell: pwsh
+        run: |
+          $dir = "build/windows/x64/runner/Release"
+          $need = @("msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll")
+          $missing = $need | Where-Object { -not (Test-Path (Join-Path $dir $_)) }
+          if ($missing) {
+            Write-Host "Release papkadagi fayllar:"
+            Get-ChildItem $dir | Select-Object -ExpandProperty Name
+            throw "MSVC runtime yetishmaydi: $($missing -join ', ') — toza Windows'da ilova ochilmaydi"
+          }
+          Write-Host "VC++ runtime joyida: $($need -join ', ')"
+
       - name: Install Inno Setup
         run: choco install innosetup -y
 
+      # Versiya pubspec'dan olinadi — aks holda «Dasturlar va komponentlar»da
+      # har doim 1.0.0 turardi va qaysi build o'rnatilgani bilinmasdi.
+      - name: Read version
+        shell: bash
+        run: echo "VER=$(grep -m1 '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)" >> "$GITHUB_ENV"
+
       - name: Build installer
-        run: iscc windows/installer.iss
+        run: iscc /DAppVersion=${{ env.VER }} windows/installer.iss
 
       - name: Upload installer
         uses: actions/upload-artifact@v4

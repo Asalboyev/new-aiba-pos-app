@@ -21,13 +21,13 @@ abstract class OrdersRepository {
   /// backend celery worker is registering the cheque with the OFD).
   Future<FiscalInfo?> fetchFiscal(String orderId);
 
-  /// Naqd chekni talab bo'yicha fiskal qilish (F12) — server navbatga qo'yadi.
+  /// Naqd chekni talab bo'yicha fiskal qilish (F9) — server navbatga qo'yadi.
   Future<void> fiscalize(String orderId);
 
-  /// Bugungi fiskal qilinmagan naqd cheklar (F12 ro'yxati).
+  /// Bugungi fiskal qilinmagan naqd cheklar (F9 ro'yxati).
   Future<List<Map<String, dynamic>>> listUnfiscalized();
 
-  /// Bugungi TO'LANGAN cheklar tarixi (F12) — qayta chop etish uchun.
+  /// Bugungi TO'LANGAN cheklar tarixi (F9) — qayta chop etish uchun.
   Future<List<Map<String, dynamic>>> listHistory();
 
   /// Order to'liq detali (items + payments) — chekni qayta chop etish uchun.

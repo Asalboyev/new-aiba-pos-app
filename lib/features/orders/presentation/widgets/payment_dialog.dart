@@ -44,7 +44,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
   final List<Payment> _parts = [];
   // Umumiy «Karta» bilan ochilsa ham UzCard'dan boshlanadi: tushum ikki
   // tarmoq bo'yicha alohida hisoblanadi, shuning uchun kassir doim
-  // aniq tarmoqni tanlaydi (F1 — UzCard, F2 — Humo).
+  // aniq tarmoqni tanlaydi (F3 — UzCard↔Humo).
   late PaymentMethod _method = switch (widget.initialMethod) {
     null => PaymentMethod.cash,
     PaymentMethod.card => PaymentMethod.uzcard,
@@ -169,20 +169,17 @@ class _PaymentDialogState extends State<PaymentDialog> {
             Navigator.of(context).pop();
             return KeyEventResult.handled;
           }
-          // F4 — karta, F5 — naqd, F3 — QR: to'lov usulini almashtirish
-          // (savdo ekranidagi klavishalar bilan bir xil).
+          // Savdo ekranidagi klavishlar bilan BIR XIL: F1 — QR, F2 — naqd,
+          // F3 — karta (birinchi bosishda UzCard, yana bosilsa Humo — ikki
+          // tarmoq orasida aylanadi).
           PaymentMethod? pick;
-          if (e.logicalKey == LogicalKeyboardKey.f5) pick = PaymentMethod.cash;
-          // F4 — karta: birinchi bosishda UzCard, yana bosilsa Humo
-          // (ikki tarmoq orasida aylanadi). F1 — UzCard, F2 — Humo (to'g'ridan).
-          if (e.logicalKey == LogicalKeyboardKey.f4) {
+          if (e.logicalKey == LogicalKeyboardKey.f1) pick = PaymentMethod.qr;
+          if (e.logicalKey == LogicalKeyboardKey.f2) pick = PaymentMethod.cash;
+          if (e.logicalKey == LogicalKeyboardKey.f3) {
             pick = _method == PaymentMethod.uzcard
                 ? PaymentMethod.humo
                 : PaymentMethod.uzcard;
           }
-          if (e.logicalKey == LogicalKeyboardKey.f1) pick = PaymentMethod.uzcard;
-          if (e.logicalKey == LogicalKeyboardKey.f2) pick = PaymentMethod.humo;
-          if (e.logicalKey == LogicalKeyboardKey.f3) pick = PaymentMethod.qr;
           if (pick != null && !_used(pick)) {
             setState(() {
               _method = pick!;
@@ -261,8 +258,10 @@ class _PaymentDialogState extends State<PaymentDialog> {
                   ],
                 ]),
               ),
-              // KARTA rejimi — F3 (Click|Uzum) dialogidagidek IKKI plitka:
-              // UzCard | Humo. F1/F2/F4 bilan ham almashadi.
+              // KARTA rejimi — F1 (Click|Uzum) dialogidagidek IKKI plitka:
+              // UzCard | Humo. F3 ikkisi orasida aylantiradi — shuning uchun
+              // «F3» belgisi FAQAT tanlanmagan tarmoqda turadi ("bossang shu
+              // bo'ladi"), tanlangani belgisiz qoladi.
               if (_method == PaymentMethod.uzcard ||
                   _method == PaymentMethod.humo) ...[
                 const SizedBox(height: 14),
@@ -274,7 +273,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                     child: _MethodTile(
                       iconAsset: 'assets/icons/pay_card.svg',
                       label: 'UzCard',
-                      hotkey: 'F1',
+                      hotkey: _method == PaymentMethod.uzcard ? null : 'F3',
                       selected: _method == PaymentMethod.uzcard,
                       onTap: () => _selectMethod(PaymentMethod.uzcard),
                     ),
@@ -284,7 +283,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                     child: _MethodTile(
                       iconAsset: 'assets/icons/pay_card.svg',
                       label: 'Humo',
-                      hotkey: 'F2',
+                      hotkey: _method == PaymentMethod.humo ? null : 'F3',
                       selected: _method == PaymentMethod.humo,
                       onTap: () => _selectMethod(PaymentMethod.humo),
                     ),
@@ -422,8 +421,8 @@ class _PaymentDialogState extends State<PaymentDialog> {
               const SizedBox(height: 10),
               const Center(
                 child: Text(
-                  'Summani tering · Enter — To\'lash · F5 naqd · '
-                  'F1 UzCard · F2 Humo · F3 QR · Esc — bekor',
+                  'Summani tering · Enter — To\'lash · F1 QR · F2 naqd · '
+                  'F3 karta (UzCard↔Humo) · Esc — bekor',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Color(0xFF5C626A), fontSize: 11.5),
                 ),

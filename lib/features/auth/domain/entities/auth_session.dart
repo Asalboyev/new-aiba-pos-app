@@ -13,7 +13,7 @@ class RestaurantInfo extends Equatable {
   final String? receiptFooter;
   final String? receiptPhone;
   final bool receiptShowQr;
-  /// Naqd chek fiskal FAQAT so'ralganda (F12)? false = naqd ham darhol
+  /// Naqd chek fiskal FAQAT so'ralganda (F9)? false = naqd ham darhol
   /// fiskal bo'lib QR bilan chiqadi (standart, eski xatti-harakat).
   final bool cashFiscalOnDemand;
   final bool receiptShowMxik;
