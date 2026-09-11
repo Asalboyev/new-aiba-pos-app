@@ -3,6 +3,7 @@ import 'package:aiba_pos_terminal/features/menu/domain/entities/product.dart';
 import 'package:aiba_pos_terminal/features/menu/presentation/providers/menu_providers.dart';
 import 'package:aiba_pos_terminal/features/orders/presentation/providers/cart_provider.dart';
 import 'package:aiba_pos_terminal/features/orders/presentation/widgets/product_grid.dart';
+import 'package:aiba_pos_terminal/features/orders/presentation/widgets/scan_label_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -85,6 +86,45 @@ void main() {
     // Miqdor 1 bo'lib qoladi: bir xil seriya ikki marta soliqqa ketmaydi.
     expect(items.first.qty, 1);
     expect(items.first.labels.length, 1);
+  });
+
+  testWidgets(
+      'markirovkali mahsulot oddiy EAN bilan o\'qilsa — EAN marka kodi BO\'LMAYDI',
+      (tester) async {
+    // Mahsulot markirovkali, shtrix-kodi biriktirilgan. Kassir qopqoqdagi
+    // DataMatrix o'rniga yorliqdagi EAN'ni o'qidi.
+    final marked = Product(
+      id: '9',
+      name: 'Marked Cola',
+      price: 12000,
+      barcode: '4780000000017',
+      markingRequired: true,
+    );
+    // Marka kodini so'rash oynasi planshet o'lchamini talab qiladi.
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final c = ProviderContainer(overrides: [
+      sharedPreferencesProvider.overrideWithValue(prefs),
+      categoriesProvider.overrideWith((ref) async => []),
+      productsProvider.overrideWith((ref) async => [marked]),
+    ]);
+    addTearDown(c.dispose);
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: c,
+      child: const MaterialApp(home: Scaffold(body: ProductGrid())),
+    ));
+    await tester.pumpAndSettle();
+    await scan(tester, '4780000000017', settle: false);
+    // Marka kodini so'rash oynasi ochiladi; bekor qilsak savat BO'SH qoladi —
+    // eng muhimi, EAN hech qachon marka kodi bo'lib yozilmaydi.
+    final items = c.read(cartProvider).items;
+    expect(items.every((i) => !i.labels.contains('4780000000017')), isTrue,
+        reason: 'EAN marka kodi sifatida biriktirilmasligi kerak');
+    // Marka kodini so'rash oynasi ochilgan bo'lishi kerak.
+    expect(find.byType(ScanLabelDialog), findsOneWidget);
   });
 
   testWidgets('markirovkali qatorda miqdorni RAQAM terib oshirib bo\'lmaydi',

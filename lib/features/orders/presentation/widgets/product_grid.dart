@@ -178,11 +178,22 @@ Future<void> _submitSearch(BuildContext context, WidgetRef ref,
       var hit = matchScan(all0, raw);
       // Kod hali biriktirilmagan bo'lsa — F2 ga yubormaymiz, shu yerda
       // mahsulotni tanlash oynasini ochamiz (bir marta, keyin o'zi topadi).
-      hit ??= await AssignBarcodeDialog.show(context, normalizeScan(raw));
+      // Markirovkalilar ham ro'yxatda bo'lsin: kassir aynan shu mahsulotning
+      // yorlig'idagi EAN'ni o'qigan.
+      hit ??= await AssignBarcodeDialog.show(context, normalizeScan(raw),
+          allowMarked: true);
       if (hit == null || !context.mounted) return;
-      // Markirovkali mahsulot oddiy EAN bilan o'qilsa ham chek markirovkasiz
-      // qolmasin — kod label sifatida biriktiriladi.
-      cart.addProduct(hit, label: hit.markingRequired ? raw : null);
+      // MARKIROVKALI mahsulotga EAN'ni marka kodi sifatida BIRIKTIRMAYMIZ:
+      // soliqqa DataMatrix (seriya bilan) ketishi kerak. Oddiy shtrix-kod
+      // server tekshiruvidan o'tib ketardi-yu, soliq uchun YAROQSIZ marka
+      // kodi bo'lardi. O'rniga qopqoqdagi kodni o'qishni so'raymiz —
+      // menyudan bosib qo'shishdagi bilan bir xil yo'l.
+      String? mark;
+      if (hit.markingRequired) {
+        mark = await ScanLabelDialog.show(context, hit.name);
+        if (mark == null || !context.mounted) return;
+      }
+      cart.addProduct(hit, label: mark);
       return;
     }
     final hasExactSku =

@@ -182,9 +182,17 @@ class _Btn extends StatelessWidget {
             Icon(icon, color: Colors.white, size: 20),
             const SizedBox(width: 8),
           ],
-          Text(label,
-              style: const TextStyle(
-                  color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+          // Uzun matn (masalan «Marka kodini o'qing») tor tugmada satrdan
+          // CHIQIB ketardi — kassa ekranida sariq-qora ogohlantirish chizig'i
+          // ko'rinardi. Endi qisqarib ko'rsatiladi.
+          Flexible(
+            child: Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+          ),
         ]),
       ),
     );
