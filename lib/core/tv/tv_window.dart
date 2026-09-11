@@ -32,25 +32,30 @@ class TvWindow {
 
   // ── TV NUSXASI ────────────────────────────────────────────────────────
   /// TV nusxasining oynasini televizor ekraniga to'liq yoyadi.
-  static Future<void> setUpTvWindow() async {
+  static Future<bool> setUpTvWindow() async {
     await windowManager.ensureInitialized();
     final display = await _external();
+    // IKKINCHI EKRAN YO'Q — umuman oyna OCHMAYMIZ va darhol chiqamiz.
+    //
+    // Bu holat sinovda topildi: oldin oyna baribir ochilib, monoblokning
+    // O'Z ekranini to'sib turardi (kuzatuv uni 5 soniyadan keyingina
+    // yopardi). Kassa ekranini bir soniyaga ham to'sish mumkin emas.
+    if (display == null) return false;
     await windowManager.waitUntilReadyToShow(null, () async {
       await windowManager.setTitle('AIBA POS — Oshxona TV');
       // Ramka va sarlavha yo'q: televizorda faqat taomlar ko'rinsin.
       await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
-      if (display != null) {
-        final p = display.visiblePosition;
-        await windowManager.setBounds(Rect.fromLTWH(
-          p?.dx ?? 0,
-          p?.dy ?? 0,
-          display.size.width,
-          display.size.height,
-        ));
-      }
+      final p = display.visiblePosition;
+      await windowManager.setBounds(Rect.fromLTWH(
+        p?.dx ?? 0,
+        p?.dy ?? 0,
+        display.size.width,
+        display.size.height,
+      ));
       await windowManager.setFullScreen(true);
       await windowManager.show();
     });
+    return true;
   }
 
   /// TV nusxasi: HDMI uzilsa o'zini yopadi (monoblok ekranida yolg'iz

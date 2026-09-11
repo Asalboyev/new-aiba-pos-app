@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'dart:io' show Platform;
+import 'dart:io' show Platform, exit;
 
 import 'core/lan/lan_service.dart';
 import 'core/tv/tv_window.dart';
@@ -35,7 +35,9 @@ Future<void> main(List<String> args) async {
   // lokal baza (drift), sinxron va LAN server ochilmaydi — ikki jarayon
   // bitta sqlite faylini talashmasin.
   if (args.contains(TvWindow.flag)) {
-    await TvWindow.setUpTvWindow();
+    // Ikkinchi ekran topilmasa — oyna ochmasdan chiqamiz (kassa ekranini
+    // to'sib qo'ymaslik uchun).
+    if (!await TvWindow.setUpTvWindow()) exit(0);
     TvWindow.watchUnplug();
     runApp(
       ProviderScope(
