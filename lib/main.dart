@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io' show Platform;
 
 import 'core/lan/lan_service.dart';
+import 'core/tv/tv_window.dart';
 import 'core/network/dio_client.dart' show loadBundledRoots;
 import 'core/providers/core_providers.dart';
 import 'core/theme/app_theme.dart';
@@ -12,6 +13,7 @@ import 'features/auth/presentation/providers/auth_providers.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/home/presentation/home_shell.dart';
 import 'features/kitchen/kitchen_screen.dart';
+import 'features/kitchen/tv_screen.dart';
 import 'features/settings/presentation/settings_screen.dart';
 
 // Faqat ishlab chiqish/vizual tekshiruv uchun: login'ni chetlab o'tib to'g'ridan
@@ -20,11 +22,29 @@ import 'features/settings/presentation/settings_screen.dart';
 const _kDebugHome = bool.fromEnvironment('DEBUG_HOME');
 const _kDebugIndex = int.fromEnvironment('DEBUG_INDEX');
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   // Let's Encrypt ildizlari — eski Windows kassalarда HTTPS ishlashi uchun.
   await loadBundledRoots();
   final prefs = await SharedPreferences.getInstance();
+
+  // ── OSHXONA TELEVIZORI ──────────────────────────────────────────────
+  // Monoblokka HDMI bilan televizor ulanganda ilova O'ZINI shu bayroq
+  // bilan ikkinchi marta ishga tushiradi (TvWindow.watchAndLaunch). Bu
+  // nusxa televizor ekraniga to'liq yoyiladi va FAQAT ko'rsatadi:
+  // lokal baza (drift), sinxron va LAN server ochilmaydi — ikki jarayon
+  // bitta sqlite faylini talashmasin.
+  if (args.contains(TvWindow.flag)) {
+    await TvWindow.setUpTvWindow();
+    TvWindow.watchUnplug();
+    runApp(
+      ProviderScope(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        child: const AibaTvApp(),
+      ),
+    );
+    return;
+  }
 
   runApp(
     ProviderScope(
@@ -34,6 +54,18 @@ Future<void> main() async {
       child: const AibaPosApp(),
     ),
   );
+}
+
+/// Televizor nusxasi — bitta ekran, boshqaruv yo'q.
+class AibaTvApp extends StatelessWidget {
+  const AibaTvApp({super.key});
+
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.dark(),
+        home: const KitchenTvScreen(),
+      );
 }
 
 class AibaPosApp extends ConsumerStatefulWidget {
@@ -59,6 +91,13 @@ class _AibaPosAppState extends ConsumerState<AibaPosApp> {
         await ref.read(sessionProvider.notifier).restore();
       }
       if (mounted) setState(() => _restored = true);
+      // OSHXONA TELEVIZORI — HDMI ulansa ilova o'zining TV nusxasini
+      // televizorda to'liq ekran qilib ochadi. Kuzatuv sessiya
+      // tiklangandan keyin boshlanadi: TV nusxasi ham shu sessiya bilan
+      // ishlaydi, login oynasi televizorda chiqib qolmasin.
+      if (mounted && ref.read(sessionProvider) != null) {
+        TvWindow.watchAndLaunch();
+      }
     });
   }
 
@@ -76,6 +115,9 @@ class _AibaPosAppState extends ConsumerState<AibaPosApp> {
     // uzilganda oshxona planshet va TV shu kompyuterdan ishlashda davom
     // etadi. Oshpaz planshetida ochilmaydi (u mijoz, server emas).
     ref.listen(sessionProvider, (prev, next) {
+      // Login'dan keyin TV kuzatuvini yoqamiz (ilova ochilganda sessiya
+      // hali tiklanmagan bo'lishi mumkin).
+      if (prev == null && next != null) TvWindow.watchAndLaunch();
       if (!Platform.isWindows) return;
       final lan = ref.read(lanServiceProvider);
       const clients = {'kitchen', 'zakazchik'};
